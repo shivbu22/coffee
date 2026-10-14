@@ -15,7 +15,8 @@ import {
   EyeOff,
   AlertCircle,
   Loader2,
-  Globe
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 import { 
@@ -23,7 +24,8 @@ import {
   isSupabaseConfigured as initialSupabaseConfigured, 
   formatSupabaseUserProfile,
   saveCustomSupabaseConfig,
-  checkSupabaseConnection 
+  checkSupabaseConnection,
+  redirectToSupabaseDashboard
 } from '../lib/supabaseClient';
 import { AuthEngine } from '../utils/authEngine';
 import { CITIES } from '../data/mockData';
@@ -271,6 +273,23 @@ export default function AuthModal({
       await SupabaseAuthService.signInWithGoogle();
     } catch (err) {
       setErrorMessage(err.message || 'Google OAuth failed to initialize.');
+    }
+  };
+
+  // --- 4. SUPABASE BROWSER REDIRECTED LOGIN ---
+  const handleSupabaseRedirectLogin = async () => {
+    setErrorMessage(null);
+    if (isCloudActive) {
+      try {
+        await SupabaseAuthService.signInWithGoogle();
+      } catch (err) {
+        setErrorMessage(err.message || 'Supabase OAuth failed to initialize.');
+      }
+    } else {
+      if (onShowToast) onShowToast('Redirecting browser to Supabase Cloud Sign In...', 'info');
+      setTimeout(() => {
+        redirectToSupabaseDashboard();
+      }, 400);
     }
   };
 
@@ -544,6 +563,27 @@ export default function AuthModal({
                     }}
                   >
                     Cancel
+                  </button>
+                </div>
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #cbd5e1', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={handleSupabaseRedirectLogin}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      color: '#0284c7',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    <ExternalLink size={12} />
+                    <span>Redirect Browser to Supabase.com Sign In ↗</span>
                   </button>
                 </div>
               </form>
@@ -1211,6 +1251,41 @@ export default function AuthModal({
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
             <span>Continue with Google</span>
+          </button>
+
+          {/* Supabase Cloud Redirect Button */}
+          <button
+            type="button"
+            onClick={handleSupabaseRedirectLogin}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: '#0f172a',
+              border: '1px solid #1e293b',
+              color: '#ffffff',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              marginTop: 8,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#1e293b';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = '#0f172a';
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12.5 2L3 13.5H11.5L10.5 22L20.5 10H12.5L12.5 2Z" fill="#3ECF8E" />
+            </svg>
+            <span>{isCloudActive ? 'Redirect to Supabase Auth' : 'Redirect to Supabase Sign In'}</span>
           </button>
 
 

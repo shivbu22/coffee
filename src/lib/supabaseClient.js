@@ -46,7 +46,9 @@ function initClient() {
   return createClient(activeConfig.url, activeConfig.anonKey, {
     auth: {
       persistSession: true,
-      autoRefreshToken: true
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce'
     },
     realtime: {
       params: {
@@ -57,6 +59,13 @@ function initClient() {
 }
 
 export let supabase = initClient();
+
+/**
+ * Redirect browser directly to Supabase Cloud Dashboard login
+ */
+export function redirectToSupabaseDashboard() {
+  window.location.href = 'https://supabase.com/dashboard/sign-in';
+}
 
 /**
  * Save custom credentials entered via UI (Admin Portal / Settings)
