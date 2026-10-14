@@ -19,6 +19,8 @@ export default function DiscoverView({
   setCityFilter, 
   onStartChatWithCompanion, 
   hasActiveSub, 
+  isLoggedIn,
+  onOpenAuth,
   onOpenSubscribe,
   onUnlockSubscription,
   onOpenHallmark
@@ -224,184 +226,77 @@ export default function DiscoverView({
           </div>
         )}
 
-        {/* Floating Coral Paywall Modal Card when !hasActiveSub */}
+        {/* Elegant Membership Notice Banner when !hasActiveSub */}
         {!hasActiveSub && (
           <div style={{
-            position: 'sticky',
-            top: 20,
-            zIndex: 30,
-            maxWidth: 580,
-            margin: '0 auto 28px auto',
-            background: '#ffffff',
-            borderRadius: 20,
-            border: '1.5px solid #fecdd3',
-            boxShadow: '0 20px 45px -10px rgba(225, 29, 72, 0.22), 0 0 0 1px rgba(244, 63, 94, 0.08)',
-            padding: '28px 26px',
-            textAlign: 'center',
-            backdropFilter: 'blur(16px)'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+            background: 'linear-gradient(135deg, rgba(225, 29, 72, 0.06) 0%, rgba(244, 63, 94, 0.02) 100%)',
+            border: '1px solid rgba(225, 29, 72, 0.22)',
+            borderRadius: 16,
+            padding: '16px 22px',
+            marginBottom: 24,
+            boxShadow: '0 4px 14px rgba(225, 29, 72, 0.06)'
           }}>
-            {/* Header Badge */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              background: '#fff1f2',
-              color: '#e11d48',
-              border: '1px solid #fecdd3',
-              padding: '5px 14px',
-              borderRadius: 9999,
-              fontSize: '0.74rem',
-              fontWeight: 800,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              marginBottom: 14
-            }}>
-              <Lock size={12} strokeWidth={2.5} />
-              MEMBERS ONLY DIRECTORY
-            </div>
-
-            <h2 style={{
-              fontSize: '1.45rem',
-              fontWeight: 800,
-              color: '#0f172a',
-              letterSpacing: '-0.025em',
-              lineHeight: 1.3,
-              marginBottom: 10
-            }}>
-              Unlock 14,200+ Verified Companions Across India
-            </h2>
-
-            <p style={{
-              color: '#64748b',
-              fontSize: '0.9rem',
-              lineHeight: 1.55,
-              maxWidth: 460,
-              margin: '0 auto 18px auto'
-            }}>
-              Browsing unblurred companion dossiers, rates, photos, and initiating 1-on-1 conversations requires an active Membership Pass.
-            </p>
-
-            {/* 3 Value Points */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              textAlign: 'left',
-              background: '#f8fafc',
-              border: '1px solid #f1f5f9',
-              borderRadius: 14,
-              padding: '14px 18px',
-              marginBottom: 20
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.84rem', color: '#334155', fontWeight: 600 }}>
-                <CheckCircle2 size={16} color="#e11d48" style={{ flexShrink: 0 }} />
-                <span>Full unblurred companion portfolios, social links & hourly rates</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: '#fff1f2',
+                color: '#e11d48',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: '0 2px 8px rgba(225, 29, 72, 0.15)'
+              }}>
+                <Award size={20} />
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.84rem', color: '#334155', fontWeight: 600 }}>
-                <CheckCircle2 size={16} color="#e11d48" style={{ flexShrink: 0 }} />
-                <span>Direct 1-on-1 private messaging with verified buddies</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.84rem', color: '#334155', fontWeight: 600 }}>
-                <CheckCircle2 size={16} color="#e11d48" style={{ flexShrink: 0 }} />
-                <span>Safety Handshake PIN & bank-grade Aadhaar verification</span>
+              <div>
+                <div style={{ fontSize: '0.94rem', fontWeight: 800, color: '#0f172a' }}>
+                  Explore 14,200+ Verified Companions Across India
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 2 }}>
+                  Browse portfolios freely. Direct 1-on-1 private messaging and escrow hangouts require an active FindCo Pass (from ₹9/day).
+                </div>
               </div>
             </div>
-
-            {/* Social proof avatar stack */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
-              <div style={{ display: 'flex', marginLeft: 8 }}>
-                {['https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&h=100&fit=crop&crop=faces',
-                  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces',
-                  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=faces',
-                  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop&crop=faces'
-                ].map((src, i) => (
-                  <img key={i} src={src} alt="Companion" style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '2px solid #ffffff',
-                    marginLeft: -8
-                  }} />
-                ))}
-              </div>
-              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
-                4.92 ★ Average Rating from 48,500+ Verified Hangouts
-              </span>
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button
-                type="button"
-                onClick={onOpenSubscribe}
-                style={{
-                  background: 'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: 14,
-                  padding: '13px 24px',
-                  fontSize: '0.94rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 8px 20px -4px rgba(225, 29, 72, 0.45)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-              >
-                <Award size={18} />
-                <span>Unlock Membership Pass (from ₹9)</span>
-              </button>
-
-              {onUnlockSubscription && (
-                <button
-                  type="button"
-                  onClick={() => onUnlockSubscription('pass_1day')}
-                  style={{
-                    background: '#f8fafc',
-                    color: '#475569',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 14,
-                    padding: '10px 18px',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = '#f1f5f9';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                  }}
-                >
-                  <span>⚡ 1-Click Demo Unlock (FREEPASS)</span>
-                </button>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={onOpenSubscribe}
+              style={{
+                background: 'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 12,
+                padding: '10px 20px',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 4px 14px rgba(225, 29, 72, 0.35)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <Award size={16} />
+              <span>Unlock Pass (₹9)</span>
+            </button>
           </div>
         )}
 
-        {/* Grid of Companions (Blurred when !hasActiveSub) */}
+        {/* Grid of Companions (Freely Accessible & Unblurred) */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
           gap: 24,
-          filter: !hasActiveSub ? 'blur(7px)' : 'none',
-          opacity: !hasActiveSub ? 0.38 : 1,
-          pointerEvents: !hasActiveSub ? 'none' : 'auto',
-          userSelect: !hasActiveSub ? 'none' : 'auto',
           transition: 'all 0.3s ease'
         }}>
         {filteredCompanions.map(comp => (
@@ -586,8 +481,10 @@ export default function DiscoverView({
                 <button
                   type="button"
                   onClick={() => {
-                    if (!hasActiveSub) {
-                      onOpenSubscribe();
+                    if (!isLoggedIn) {
+                      if (onOpenAuth) onOpenAuth('client');
+                    } else if (!hasActiveSub) {
+                      if (onOpenSubscribe) onOpenSubscribe();
                     } else {
                       onStartChatWithCompanion(comp);
                     }

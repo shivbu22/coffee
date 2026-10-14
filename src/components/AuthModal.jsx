@@ -51,13 +51,13 @@ export default function AuthModal({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('9876543210');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState(defaultRole);
   const [city, setCity] = useState('Bengaluru');
 
   // Phone OTP Flow states
   const [otpStep, setOtpStep] = useState('phone'); // 'phone' | 'otp'
-  const [otp, setOtp] = useState(['4', '8', '9', '2']);
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [resendTimer, setResendTimer] = useState(30);
 
   // Status & Error
@@ -75,15 +75,11 @@ export default function AuthModal({
       setErrorMessage(null);
       setSuccessNotice(null);
       setOtpStep('phone');
-      if (defaultRole === 'buddy') {
-        setFullName('Priya Sharma');
-        setEmail('priya.sharma@findco.in');
-        setPhone('9876543210');
-      } else {
-        setFullName('Shiv Y');
-        setEmail('shiv.y@example.com');
-        setPhone('9811234567');
-      }
+      setFullName('');
+      setEmail('');
+      setPassword('');
+      setPhone('');
+      setOtp(['', '', '', '']);
     }
   }, [isOpen, defaultRole]);
 
@@ -278,31 +274,6 @@ export default function AuthModal({
     }
   };
 
-  // --- 4. 1-CLICK INSTANT DEMO ---
-  const handleQuickDemoLogin = async (demoRole) => {
-    try {
-      const email = demoRole === 'buddy' ? 'priya.sharma@findco.in' : 'shiv.y@example.com';
-      const { user } = await AuthEngine.login({ email, password: 'password123' });
-      onLoginSuccess(user);
-      onClose();
-      if (onShowToast) onShowToast(`Logged in as ${user.name} (${demoRole === 'buddy' ? 'Companion Buddy' : 'Client'})`, 'success');
-    } catch (e) {
-      const isBuddy = demoRole === 'buddy';
-      const userProfile = {
-        name: isBuddy ? 'Priya Sharma' : 'Shiv Y',
-        email: isBuddy ? 'priya.sharma@findco.in' : 'shiv.y@example.com',
-        phone: isBuddy ? '+91 98765 43210' : '+91 98112 34567',
-        city: 'Bengaluru',
-        role: demoRole,
-        avatar: isBuddy 
-          ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces'
-          : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces',
-        isAadhaarVerified: true
-      };
-      onLoginSuccess(userProfile);
-      onClose();
-    }
-  };
 
   // --- 5. CONNECT SUPABASE CLOUD IN MODAL ---
   const handleConnectCloudInModal = async (e) => {
@@ -1110,26 +1081,10 @@ export default function AuthModal({
                 </div>
 
                 <div style={{ marginBottom: 16 }} onPaste={handlePasteOtp}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ marginBottom: 8 }}>
                     <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
                       Enter 4-Digit Security Code
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setOtp(['4', '8', '9', '2'])}
-                      style={{
-                        background: '#fff1f2',
-                        border: '1px solid #fecdd3',
-                        color: '#e11d48',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        borderRadius: 6,
-                        padding: '2px 8px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Autofill: 4892
-                    </button>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
@@ -1169,7 +1124,7 @@ export default function AuthModal({
                       type="button"
                       onClick={() => {
                         setResendTimer(30);
-                        if (onShowToast) onShowToast('New SMS OTP sent! Code: 4892', 'info');
+                        if (onShowToast) onShowToast('New verification code sent via SMS.', 'info');
                       }}
                       style={{ background: 'none', border: 'none', color: '#fa6e5e', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
                     >
@@ -1258,104 +1213,6 @@ export default function AuthModal({
             <span>Continue with Google</span>
           </button>
 
-          {/* Quick Demo Fast-Pass */}
-          <div style={{
-            marginTop: 18,
-            paddingTop: 14,
-            borderTop: '1px solid #f1f5f9'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              gap: 8, 
-              marginBottom: 10 
-            }}>
-              <span style={{ 
-                fontSize: '0.66rem', 
-                color: '#94a3b8', 
-                fontWeight: 800, 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.08em' 
-              }}>
-                1-Click Instant Demo Login
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {/* Shiv (Client) */}
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('client')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = '#cbd5e1';
-                  e.currentTarget.style.background = '#f1f5f9';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                  e.currentTarget.style.background = '#f8fafc';
-                }}
-              >
-                <img 
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces"
-                  alt="Shiv Y"
-                  style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-                />
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>Shiv Y</div>
-                  <span style={{ fontSize: '0.64rem', fontWeight: 700, color: '#64748b' }}>Client Account</span>
-                </div>
-              </button>
-
-              {/* Priya (Companion) */}
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('buddy')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  border: '1px solid #fecdd3',
-                  background: '#fff1f2',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = '#fa6e5e';
-                  e.currentTarget.style.background = '#ffe4e6';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#fecdd3';
-                  e.currentTarget.style.background = '#fff1f2';
-                }}
-              >
-                <img 
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&h=100&fit=crop&crop=faces"
-                  alt="Priya Sharma"
-                  style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-                />
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#9f1239' }}>Priya S</div>
-                  <span style={{ fontSize: '0.64rem', fontWeight: 700, color: '#be123c' }}>Companion Pro</span>
-                </div>
-              </button>
-            </div>
-          </div>
 
           {/* Footer Security Note */}
           <div style={{

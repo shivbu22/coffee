@@ -438,6 +438,8 @@ export default function App() {
               setCityFilter={setCityFilter}
               onStartChatWithCompanion={handleStartChatWithCompanion}
               hasActiveSub={hasActiveSub}
+              isLoggedIn={isLoggedIn}
+              onOpenAuth={handleOpenAuth}
               onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
               onUnlockSubscription={handleUnlockSubscription}
               onOpenHallmark={handleOpenHallmark}

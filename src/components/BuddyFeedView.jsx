@@ -618,186 +618,69 @@ export default function BuddyFeedView({
         </div>
       )}
 
-      {/* 6. VIP PAYWALL ENCLAVE (WHEN !hasActiveSub) */}
+      {/* Elegant Membership Notice Banner when !hasActiveSub */}
       {!hasActiveSub && (
         <div style={{
-          position: 'sticky',
-          top: 16,
-          zIndex: 30,
-          maxWidth: 620,
-          margin: '0 auto 28px auto',
-          background: 'rgba(255, 255, 255, 0.98)',
-          borderRadius: 24,
-          border: '1.5px solid #fecdd3',
-          boxShadow: '0 24px 50px -12px rgba(225, 29, 72, 0.26), 0 0 0 1px rgba(244, 63, 94, 0.1)',
-          padding: '30px 28px',
-          textAlign: 'center',
-          backdropFilter: 'blur(16px)'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16,
+          background: 'linear-gradient(135deg, rgba(225, 29, 72, 0.06) 0%, rgba(244, 63, 94, 0.02) 100%)',
+          border: '1px solid rgba(225, 29, 72, 0.22)',
+          borderRadius: 16,
+          padding: '16px 22px',
+          marginBottom: 24,
+          boxShadow: '0 4px 14px rgba(225, 29, 72, 0.06)'
         }}>
-          {/* Header Badge */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: '#fff1f2',
-            color: '#e11d48',
-            border: '1px solid #fecdd3',
-            padding: '5px 14px',
-            borderRadius: 9999,
-            fontSize: '0.74rem',
-            fontWeight: 800,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 14
-          }}>
-            <Lock size={12} strokeWidth={2.5} />
-            MEMBERS ONLY HIRE MARKETPLACE
-          </div>
-
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: 800,
-            color: '#0f172a',
-            letterSpacing: '-0.025em',
-            lineHeight: 1.3,
-            marginBottom: 10
-          }}>
-            Unlock India's #1 Social Companion Feed
-          </h2>
-
-          <p style={{
-            color: '#64748b',
-            fontSize: '0.88rem',
-            lineHeight: 1.55,
-            maxWidth: 480,
-            margin: '0 auto 20px auto'
-          }}>
-            Hiring activity buddies, viewing unblurred requests, proposing custom prices, and sending direct messages requires an active Pass.
-          </p>
-
-          {/* 3 Value Pillars */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: 10,
-            textAlign: 'left',
-            marginBottom: 20
-          }}>
-            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e11d48', fontWeight: 700, fontSize: '0.8rem', marginBottom: 4 }}>
-                <CheckCircle2 size={14} />
-                <span>Direct Applications</span>
-              </div>
-              <div style={{ fontSize: '0.74rem', color: '#64748b', lineHeight: 1.35 }}>
-                Send instant hire proposals & chat directly with authors.
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: '#fff1f2',
+              color: '#e11d48',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(225, 29, 72, 0.15)'
+            }}>
+              <Award size={20} />
             </div>
-
-            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e11d48', fontWeight: 700, fontSize: '0.8rem', marginBottom: 4 }}>
-                <CheckCircle2 size={14} />
-                <span>0% Commission</span>
+            <div>
+              <div style={{ fontSize: '0.94rem', fontWeight: 800, color: '#0f172a' }}>
+                India's #1 Live Social Companion Exchange
               </div>
-              <div style={{ fontSize: '0.74rem', color: '#64748b', lineHeight: 1.35 }}>
-                Companions keep 100% of their earnings via instant UPI.
-              </div>
-            </div>
-
-            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e11d48', fontWeight: 700, fontSize: '0.8rem', marginBottom: 4 }}>
-                <CheckCircle2 size={14} />
-                <span>Escrow Enclave</span>
-              </div>
-              <div style={{ fontSize: '0.74rem', color: '#64748b', lineHeight: 1.35 }}>
-                Funds locked in RBI-compliant escrow until meeting PIN matches.
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 2 }}>
+                Browse companion gig requests freely. Sending hire proposals, custom rate bids, and direct messages requires an active Pass (from ₹9/day).
               </div>
             </div>
           </div>
-
-          {/* Social Proof Member Stack */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
-            <div style={{ display: 'flex', marginLeft: 8 }}>
-              {[
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
-                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces',
-                'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop&crop=faces',
-                'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&h=100&fit=crop&crop=faces'
-              ].map((src, i) => (
-                <img key={i} src={src} alt="Companion" style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '2px solid #ffffff',
-                  marginLeft: -8
-                }} />
-              ))}
-            </div>
-            <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
-              Joined by 14,200+ members in Delhi, Mumbai, Bengaluru & Goa
-            </span>
-          </div>
-
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              type="button"
-              onClick={onOpenSubscribe}
-              style={{
-                background: 'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 14,
-                padding: '13px 24px',
-                fontSize: '0.94rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 8px 20px -4px rgba(225, 29, 72, 0.45)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                transition: 'all 0.15s ease'
-              }}
-              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-              <Award size={18} />
-              <span>Unlock Membership Pass (from ₹9)</span>
-            </button>
-
-            {onUnlockSubscription && (
-              <button
-                type="button"
-                onClick={() => onUnlockSubscription('pass_1day')}
-                style={{
-                  background: '#f8fafc',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 14,
-                  padding: '10px 18px',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = '#f1f5f9';
-                  e.currentTarget.style.borderColor = '#cbd5e1';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = '#f8fafc';
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                }}
-              >
-                <span>⚡ 1-Click Instant Demo Access (FREEPASS)</span>
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={onOpenSubscribe}
+            style={{
+              background: 'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 12,
+              padding: '10px 20px',
+              fontSize: '0.86rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 14px rgba(225, 29, 72, 0.35)',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <Award size={16} />
+            <span>Unlock Pass (₹9)</span>
+          </button>
         </div>
       )}
 
@@ -894,10 +777,6 @@ export default function BuddyFeedView({
           display: 'flex',
           flexDirection: 'column',
           gap: 18,
-          filter: !hasActiveSub ? 'blur(7px)' : 'none',
-          opacity: !hasActiveSub ? 0.35 : 1,
-          pointerEvents: !hasActiveSub ? 'none' : 'auto',
-          userSelect: !hasActiveSub ? 'none' : 'auto',
           transition: 'all 0.3s ease'
         }}>
           {filteredRequests.map((req) => {

@@ -38,7 +38,7 @@ export default function AdminSecurityGate({
 
     setTimeout(() => {
       // Valid credentials check:
-      // Accepts demo passkey "BUDDY-ADMIN-2026", "FINDCO-ADMIN-2026", "admin123", or "buddysearch"
+      // Accepts authorized passkey "BUDDY-ADMIN-2026", "FINDCO-ADMIN-2026", "admin123", or "buddysearch"
       const normalizedKey = passkey.trim();
       const isValid = normalizedKey === 'BUDDY-ADMIN-2026' || normalizedKey === 'FINDCO-ADMIN-2026' || normalizedKey === 'admin123' || normalizedKey === 'buddysearch' || normalizedKey === 'findco';
 
@@ -65,12 +65,6 @@ export default function AdminSecurityGate({
     }, 600);
   };
 
-  const handleQuickFill = () => {
-    setPasskey('BUDDY-ADMIN-2026');
-    setTotp('748291');
-    setOperatorId('audit.lead@findco.internal');
-    setErrorMsg('');
-  };
 
   return (
     <div style={{
@@ -173,43 +167,6 @@ export default function AdminSecurityGate({
           </p>
         </div>
 
-        {/* Quick Fill Helper for Demo / Testing */}
-        <div style={{
-          background: 'rgba(56, 189, 248, 0.08)',
-          border: '1px dashed rgba(56, 189, 248, 0.35)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 14px',
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12
-        }}>
-          <div>
-            <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#38bdf8' }}>
-              Staff Demo Access Pass
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-              Key: <code style={{ color: '#f8fafc' }}>BUDDY-ADMIN-2026</code>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleQuickFill}
-            style={{
-              background: 'rgba(56, 189, 248, 0.18)',
-              border: '1px solid rgba(56, 189, 248, 0.4)',
-              color: '#38bdf8',
-              borderRadius: 'var(--radius-sm)',
-              padding: '6px 12px',
-              fontSize: '0.74rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            Auto-Fill Demo Key
-          </button>
-        </div>
 
         {errorMsg && (
           <div style={{
@@ -263,7 +220,7 @@ export default function AdminSecurityGate({
               <input 
                 id="admin-passkey"
                 type={showPasskey ? 'text' : 'password'}
-                placeholder="Enter admin security passkey"
+                placeholder="Enter staff security key (e.g. FINDCO-ADMIN-2026)"
                 value={passkey}
                 onChange={e => setPasskey(e.target.value)}
                 required
