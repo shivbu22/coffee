@@ -96,7 +96,7 @@ export default function AdminPortalView({
       if (res.connected) {
         onShowToast(`Supabase PostgreSQL connected (${res.latencyMs || 0}ms)`, 'success');
       } else {
-        onShowToast(res.reason || res.error || 'Operating in AntiVibe local sync mode', 'info');
+        onShowToast(res.reason || res.error || 'Operating in Local Storage fallback mode', 'info');
       }
     } catch (err) {
       setCloudStatus({ connected: false, error: err.message });
@@ -128,7 +128,7 @@ export default function AdminPortalView({
     setSupabaseInputKey('');
     setCloudStatus(null);
     setTableAudit(null);
-    onShowToast('Cloud credentials cleared. Reverted to AntiVibe Local Storage mode.', 'info');
+    onShowToast('Cloud credentials cleared. Reverted to Local Storage mode.', 'info');
   };
 
   const handleAuditTables = async () => {
@@ -1196,7 +1196,7 @@ export default function AdminPortalView({
                     color: (cloudStatus?.connected || isSupabaseConfigured) ? '#10b981' : 'var(--color-gold)', 
                     fontWeight: 700 
                   }}>
-                    {(cloudStatus?.connected || isSupabaseConfigured) ? '● CLOUD ACTIVE' : '● ANTIVIBE LOCAL SYNC'}
+                    {(cloudStatus?.connected || isSupabaseConfigured) ? '● CLOUD ACTIVE' : '● LOCAL STORAGE SYNC'}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>

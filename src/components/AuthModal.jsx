@@ -431,7 +431,7 @@ export default function AuthModal({
               boxShadow: isSupabaseConfigured ? '0 0 6px rgba(22, 163, 74, 0.6)' : 'none'
             }} />
             <span>
-              {isSupabaseConfigured ? 'Supabase Auth Cloud Active' : 'AntiVibe Secure Session Engine'}
+              {isSupabaseConfigured ? 'Supabase Auth Cloud Active' : '256-Bit Encrypted Session'}
             </span>
           </div>
 
@@ -835,11 +835,11 @@ export default function AuthModal({
                 {isSubmitting ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Connecting to Supabase...</span>
+                    <span>Authenticating...</span>
                   </>
                 ) : (
                   <>
-                    <span>{emailMode === 'signup' ? 'Create Supabase Account' : 'Sign In with Supabase'}</span>
+                    <span>{emailMode === 'signup' ? 'Create Account' : 'Sign In'}</span>
                     <ArrowRight size={16} />
                   </>
                 )}

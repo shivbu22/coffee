@@ -95,7 +95,7 @@ export async function checkSupabaseConnection() {
     return {
       connected: false,
       reason: 'No live credentials configured. Set VITE_SUPABASE_URL or enter them in the Cloud Configurator.',
-      mode: 'AntiVibe Local Storage Fallback Mode',
+      mode: 'Local Storage Fallback Mode',
       url: currentConfig.url || null
     };
   }
@@ -139,7 +139,7 @@ export async function checkSupabaseConnection() {
     return {
       connected: false,
       error: err.message,
-      mode: 'AntiVibe Local Storage Fallback Mode'
+      mode: 'Local Storage Fallback Mode'
     };
   }
 }
