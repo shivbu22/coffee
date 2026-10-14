@@ -8,11 +8,59 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =========================================================================
--- 1. COMPANIONS / PROFILES TABLE
+-- 0. USER PROFILES & SUPABASE AUTH ENCLAVE
+-- Seamlessly mirrors auth.users(id) created by Supabase Auth (Email, Phone OTP, Google OAuth)
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    full_name TEXT,
+    avatar_url TEXT DEFAULT 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces',
+    phone TEXT,
+    role TEXT DEFAULT 'client' CHECK (role IN ('client', 'buddy', 'admin')),
+    city TEXT DEFAULT 'Bengaluru',
+    is_aadhaar_verified BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Automatic Auth Trigger: Whenever a user signs up via Supabase Auth,
+-- seamlessly create or update their public.profiles record
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, full_name, avatar_url, phone, role, city)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(COALESCE(NEW.email, 'User'), '@', 1)),
+        COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'avatar', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces'),
+        COALESCE(NEW.raw_user_meta_data->>'phone', NEW.phone, ''),
+        COALESCE(NEW.raw_user_meta_data->>'role', 'client'),
+        COALESCE(NEW.raw_user_meta_data->>'city', 'Bengaluru')
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
+        avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
+        role = COALESCE(EXCLUDED.role, public.profiles.role),
+        city = COALESCE(EXCLUDED.city, public.profiles.city),
+        updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =========================================================================
+-- 1. COMPANIONS / VERIFIED BUDDY PROFILES TABLE
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS public.companions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     age INT NOT NULL DEFAULT 24 CHECK (age >= 18),
     gender TEXT DEFAULT 'Female',
@@ -112,11 +160,28 @@ CREATE TABLE IF NOT EXISTS public.hallmark_credentials (
 -- =========================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES (Idempotent)
 -- =========================================================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.companions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hallmark_credentials ENABLE ROW LEVEL SECURITY;
+
+-- 0. Profiles RLS
+DROP POLICY IF EXISTS "Public can view member profiles" ON public.profiles;
+CREATE POLICY "Public can view member profiles" 
+    ON public.profiles FOR SELECT 
+    USING (true);
+
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+CREATE POLICY "Users can insert their own profile" 
+    ON public.profiles FOR INSERT 
+    WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+CREATE POLICY "Users can update their own profile" 
+    ON public.profiles FOR UPDATE 
+    USING (auth.uid() = id);
 
 -- 1. Companions RLS
 DROP POLICY IF EXISTS "Public can view verified companions" ON public.companions;
@@ -212,6 +277,13 @@ BEGIN
         WHERE pubname = 'supabase_realtime' AND tablename = 'bookings'
     ) THEN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.bookings;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'profiles'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
     END IF;
 END $$;
 

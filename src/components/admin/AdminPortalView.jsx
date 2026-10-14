@@ -1424,7 +1424,7 @@ export default function AdminPortalView({
               </div>
 
               <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
-                The complete SQL migration script creates all 5 tables (<code style={{ color: 'var(--color-primary)' }}>companions</code>, <code style={{ color: 'var(--color-primary)' }}>activity_requests</code>, <code style={{ color: 'var(--color-primary)' }}>bookings</code>, <code style={{ color: 'var(--color-primary)' }}>chat_messages</code>, <code style={{ color: 'var(--color-primary)' }}>hallmark_credentials</code>), enables Row Level Security (RLS) with permissive policies, configures Realtime websocket replication, and seeds verified Indian companions.
+                The complete SQL migration script creates all 6 tables (<code style={{ color: 'var(--color-primary)' }}>profiles</code> for Supabase Auth, <code style={{ color: 'var(--color-primary)' }}>companions</code>, <code style={{ color: 'var(--color-primary)' }}>activity_requests</code>, <code style={{ color: 'var(--color-primary)' }}>bookings</code>, <code style={{ color: 'var(--color-primary)' }}>chat_messages</code>, <code style={{ color: 'var(--color-primary)' }}>hallmark_credentials</code>), installs the <code style={{ color: 'var(--color-primary)' }}>handle_new_user()</code> auth trigger, enables Row Level Security (RLS), and configures Realtime websocket replication.
               </p>
 
               {showSqlViewer && (
