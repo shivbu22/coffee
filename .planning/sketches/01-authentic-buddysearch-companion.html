@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Variant A: Direct BuddySearch Companion Replica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --coral: #f43f5e;
+      --coral-dark: #e11d48;
+      --coral-bg: #fff1f2;
+      --coral-border: #fecdd3;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --border: #f1f5f9;
+      --border-dark: #e2e8f0;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-body);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar */
+    aside {
+      width: 220px;
+      background: #ffffff;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justifyContent: space-between;
+      padding: 20px 14px;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 24px;
+      padding-left: 6px;
+      cursor: pointer;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--coral), var(--coral-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .brand-name {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-name span {
+      color: var(--coral-dark);
+    }
+
+    .nav-group-title {
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      padding-left: 10px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 18px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 12px;
+      color: #475569;
+      text-decoration: none;
+      font-size: 0.86rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: #f8fafc;
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: var(--coral-bg);
+      color: var(--coral-dark);
+      font-weight: 700;
+    }
+
+    .nav-item .icon {
+      font-size: 15px;
+      width: 18px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .user-card {
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .user-profile-tile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+    }
+
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .user-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .user-name {
+      font-size: 0.84rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-role {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--coral-dark);
+    }
+
+    .sign-out-btn {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--coral-border);
+      background: var(--coral-bg);
+      color: var(--coral-dark);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Main Area */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Top Search Header */
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .search-bar {
+      flex: 1;
+      max-width: 600px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #f1f5f9;
+      padding: 9px 16px;
+      border-radius: 9999px;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+    }
+
+    .search-bar input {
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 100%;
+      font-size: inherit;
+      color: var(--text);
+    }
+
+    /* Blurred Background Feed */
+    .feed-container {
+      flex: 1;
+      padding: 24px 28px;
+      overflow-y: auto;
+      filter: blur(5px);
+      pointer-events: none;
+      user-select: none;
+      opacity: 0.75;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 820px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .feed-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid var(--border-dark);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    /* Central Floating Paywall Modal */
+    .paywall-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.2);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .paywall-modal {
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+      animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-banner {
+      background: linear-gradient(145deg, #f43f5e 0%, #e11d48 100%);
+      padding: 34px 24px 28px 24px;
+      text-align: center;
+      color: #ffffff;
+      position: relative;
+    }
+
+    .lock-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      font-size: 18px;
+    }
+
+    .banner-tag {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.9;
+      margin-bottom: 6px;
+    }
+
+    .banner-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .banner-sub {
+      font-size: 0.85rem;
+      opacity: 0.9;
+      max-width: 300px;
+      margin: 0 auto;
+      line-height: 1.45;
+    }
+
+    .modal-body {
+      padding: 24px 24px 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .benefit-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 4px 0;
+    }
+
+    .benefit-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: #fff1f2;
+      color: #e11d48;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .benefit-text {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .social-proof-pill {
+      background: #f8fafc;
+      border: 1px solid var(--border-dark);
+      border-radius: 9999px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 6px 0;
+    }
+
+    .avatar-stack {
+      display: flex;
+      margin-left: -4px;
+    }
+
+    .stack-img {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #ffffff;
+      margin-left: -6px;
+      object-fit: cover;
+    }
+
+    .stack-img:first-child {
+      margin-left: 0;
+    }
+
+    .social-text {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    .unlock-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(225, 29, 72, 0.3);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .unlock-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(225, 29, 72, 0.4);
+    }
+
+    .cancel-sub {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* PWA Prompt Bottom-Right */
+    .pwa-toast {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 360px;
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .pwa-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .pwa-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .pwa-title {
+      font-size: 0.94rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .pwa-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .pwa-btn-primary {
+      padding: 10px;
+      border-radius: 10px;
+      background: #e11d48;
+      color: #ffffff;
+      font-size: 0.84rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+    }
+
+    .pwa-btn-sec {
+      padding: 8px;
+      border-radius: 8px;
+      background: #fff1f2;
+      color: #e11d48;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+    }
+
+    .pwa-close {
+      text-align: center;
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar -->
+  <aside>
+    <div>
+      <div class="brand">
+        <div class="brand-icon">🔍</div>
+        <div class="brand-name">Buddy<span>Search</span></div>
+      </div>
+
+      <div class="nav-group-title">EXPLORE</div>
+      <div class="nav-list">
+        <button class="nav-item active"><span class="icon">📻</span> Hire</button>
+        <button class="nav-item"><span class="icon">🧭</span> Find</button>
+      </div>
+
+      <div class="nav-group-title">COMMUNICATION</div>
+      <div class="nav-list">
+        <button class="nav-item"><span class="icon">💬</span> Messages</button>
+        <button class="nav-item"><span class="icon">🔔</span> Notifications</button>
+      </div>
+
+      <div class="nav-group-title">COMMUNITY</div>
+      <div class="nav-list">
+        <button class="nav-item"><span class="icon">📋</span> Connections</button>
+      </div>
+
+      <div class="nav-group-title">ACCOUNT</div>
+      <div class="nav-list">
+        <button class="nav-item"><span class="icon">👤</span> Profile</button>
+        <button class="nav-item"><span class="icon">⭐</span> Membership</button>
+        <button class="nav-item"><span class="icon">❓</span> Help</button>
+      </div>
+    </div>
+
+    <!-- User Profile Bottom -->
+    <div class="user-card">
+      <div class="user-profile-tile">
+        <img class="user-avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop" alt="Shiv Y">
+        <div class="user-info">
+          <div class="user-name">Shiv Y</div>
+          <div class="user-role">✦ Buddy</div>
+        </div>
+      </div>
+      <button class="sign-out-btn">↪ Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Right Main App -->
+  <main>
+    <header>
+      <div class="search-bar">
+        <span>🔍</span>
+        <input type="text" placeholder="What kind of buddy are you looking for..." readonly>
+      </div>
+    </header>
+
+    <!-- Blurred Content Feed Underneath -->
+    <div class="feed-container">
+      <div class="feed-card">
+        <h3>Available as dining companion in Indiranagar</h3>
+        <p>Looking for a foodie companion to explore craft burger roasteries this Saturday afternoon.</p>
+        <div style="margin-top: 10px; font-weight: 700; color: #e11d48;">₹1,500/hour · Verified Aadhaar</div>
+      </div>
+      <div class="feed-card">
+        <h3>Need workout buddy at Cult Fit Koramangala</h3>
+        <p>Morning 7 AM strength training partner. Need motivation and spot assistance.</p>
+        <div style="margin-top: 10px; font-weight: 700; color: #e11d48;">₹800/session · 100% Platonic</div>
+      </div>
+      <div class="feed-card">
+        <h3>Concert accompaniment for Sunburn Arena</h3>
+        <p>Attending live set at Palace Grounds. Need someone fun and dependable to hang with.</p>
+        <div style="margin-top: 10px; font-weight: 700; color: #e11d48;">₹2,500/evening · Escrow protected</div>
+      </div>
+    </div>
+
+    <!-- Central Floating Coral Paywall Modal -->
+    <div class="paywall-overlay" id="paywallOverlay">
+      <div class="paywall-modal">
+        <div class="modal-banner">
+          <div class="lock-pill">🔒</div>
+          <div class="banner-tag">MEMBERS ONLY</div>
+          <h2 class="banner-title">Your next buddy is one tap away.</h2>
+          <p class="banner-sub">Unlock this to see who's already interested in meeting you.</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="benefit-item">
+            <div class="benefit-icon">💬</div>
+            <div class="benefit-text">Hire nearby buddy, instantly</div>
+          </div>
+          <div class="benefit-item">
+            <div class="benefit-icon">❤️</div>
+            <div class="benefit-text">Unlimited connections, every day</div>
+          </div>
+          <div class="benefit-item">
+            <div class="benefit-icon">🛡️</div>
+            <div class="benefit-text">Priority for verified profiles</div>
+          </div>
+
+          <div class="social-proof-pill">
+            <div class="avatar-stack">
+              <img class="stack-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&h=60&fit=crop" alt="Buddy">
+              <img class="stack-img" src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=60&h=60&fit=crop" alt="Buddy">
+              <img class="stack-img" src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=60&h=60&fit=crop" alt="Buddy">
+            </div>
+            <span class="social-text">1M+ buddies are already members</span>
+          </div>
+
+          <button class="unlock-btn" onclick="togglePaywall()">Unlock Full Access</button>
+          <div class="cancel-sub">Starts at ₹299/month · Cancel anytime</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PWA Installation Banner -->
+    <div class="pwa-toast">
+      <div class="pwa-header">
+        <div class="pwa-icon">🔍</div>
+        <div>
+          <div class="pwa-title">Add BuddySearch to your Home Screen</div>
+          <div class="pwa-desc">Faster access, offline support & chat notifications</div>
+        </div>
+      </div>
+      <button class="pwa-btn-primary">Add to Home Screen</button>
+      <button class="pwa-btn-sec">Enable Notifications Only</button>
+      <button class="pwa-close" onclick="this.parentElement.style.display='none'">Not Now</button>
+    </div>
+  </main>
+
+  <script>
+    function togglePaywall() {
+      const overlay = document.getElementById('paywallOverlay');
+      overlay.style.display = overlay.style.display === 'none' ? 'flex' : 'none';
+    }
+  </script>
+</body>
+</html>
