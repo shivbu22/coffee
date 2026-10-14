@@ -88,18 +88,7 @@ export default function BuddyAppShell({
         }
       ]
     },
-    {
-      group: 'INTELLIGENCE',
-      items: [
-        {
-          id: 'antigravity',
-          label: 'AI Concierge',
-          icon: Bot,
-          badge: 'AGENT',
-          onClick: onOpenAntigravityAgent
-        }
-      ]
-    },
+
     {
       group: 'COMMUNITY',
       items: [

@@ -24,12 +24,13 @@ import {
   INITIAL_COMPANIONS, 
   INITIAL_REQUESTS, 
   INITIAL_CHATS, 
-  INITIAL_KYC_REQUESTS,
-  INITIAL_DASHBOARD_DATA,
-  INITIAL_NOTIFICATIONS,
-  SUBSCRIPTION_PLANS,
-  DEFAULT_BUDDY_PROFILE
+  INITIAL_KYC_REQUESTS, 
+  INITIAL_DASHBOARD_DATA, 
+  INITIAL_NOTIFICATIONS, 
+  SUBSCRIPTION_PLANS, 
+  DEFAULT_BUDDY_PROFILE 
 } from './data/mockData';
+import { SupabaseAuthService, formatSupabaseUserProfile } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export default function App() {
@@ -176,10 +177,44 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
+  // Supabase Cloud Auth Session Synchronizer
+  useEffect(() => {
+    // 1. Check existing active cloud session on mount
+    SupabaseAuthService.getSession().then(session => {
+      if (session?.user && !isLoggedIn) {
+        const profile = formatSupabaseUserProfile(session.user);
+        setIsLoggedIn(true);
+        setCurrentUser(profile);
+        setRole(profile.role);
+        StorageEngine.setUserSession(profile);
+      }
+    }).catch(e => console.warn('[Supabase Session Check]', e));
+
+    // 2. Subscribe to live auth events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
+    const unsubscribe = SupabaseAuthService.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const profile = formatSupabaseUserProfile(session.user);
+        setIsLoggedIn(true);
+        setCurrentUser(profile);
+        setRole(profile.role);
+        StorageEngine.setUserSession(profile);
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+        StorageEngine.clearUserSession();
+      }
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, []);
+
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
     StorageEngine.clearUserSession();
+    SupabaseAuthService.signOut();
     setActiveTab('landing');
     showToast('You have signed out of your account.', 'info');
   };

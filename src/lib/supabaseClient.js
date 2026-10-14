@@ -495,3 +495,167 @@ export const SupabaseService = {
     return data;
   }
 };
+
+/**
+ * Format raw Supabase User object into FindCo's user profile schema
+ */
+export function formatSupabaseUserProfile(user, fallbackRole = 'client') {
+  if (!user) return null;
+  const metadata = user.user_metadata || {};
+  const role = metadata.role || fallbackRole;
+  const isBuddy = role === 'buddy';
+  
+  return {
+    id: user.id,
+    supabaseUserId: user.id,
+    name: metadata.full_name || (user.email ? user.email.split('@')[0] : (isBuddy ? 'Priya Sharma' : 'Member')),
+    email: user.email || '',
+    phone: metadata.phone || user.phone || '',
+    city: metadata.city || 'Bengaluru',
+    role: role,
+    avatar: metadata.avatar || (isBuddy 
+      ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces'
+      : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces'),
+    isAadhaarVerified: true
+  };
+}
+
+/**
+ * Supabase Authentication Service
+ * Complete client interface for Email/Password, Magic Link, Phone OTP, Google OAuth & Session Management
+ */
+export const SupabaseAuthService = {
+  /**
+   * Get active Supabase session
+   */
+  async getSession() {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return session;
+    } catch (err) {
+      console.warn('[SupabaseAuth] getSession error:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Register a new user with Email + Password and metadata profile
+   */
+  async signUpWithEmail({ email, password, fullName, role = 'client', phone = '', city = 'Bengaluru' }) {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase client is not configured with cloud credentials.');
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role,
+          phone,
+          city
+        }
+      }
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Sign in with Email + Password
+   */
+  async signInWithEmail(email, password) {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase client is not configured with cloud credentials.');
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Request an OTP / Magic Link via Email or Phone
+   */
+  async signInWithOtp(emailOrPhone) {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase client is not configured with cloud credentials.');
+    }
+    const isPhone = !emailOrPhone.includes('@');
+    const params = isPhone 
+      ? { phone: emailOrPhone.startsWith('+') ? emailOrPhone : `+91${emailOrPhone.replace(/\D/g, '')}` }
+      : { email: emailOrPhone };
+    const { data, error } = await supabase.auth.signInWithOtp(params);
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Verify an SMS or Email OTP code
+   */
+  async verifyOtp({ phoneOrEmail, token, type = 'email' }) {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase client is not configured with cloud credentials.');
+    }
+    const isPhone = !phoneOrEmail.includes('@');
+    const params = isPhone 
+      ? { phone: phoneOrEmail.startsWith('+') ? phoneOrEmail : `+91${phoneOrEmail.replace(/\D/g, '')}`, token, type: 'sms' }
+      : { email: phoneOrEmail, token, type: 'email' };
+    const { data, error } = await supabase.auth.verifyOtp(params);
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Sign in using Google OAuth
+   */
+  async signInWithGoogle() {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase client is not configured with cloud credentials.');
+    }
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Sign out of Supabase session
+   */
+  async signOut() {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) console.warn('[SupabaseAuth] signOut error:', error);
+    } catch (err) {
+      console.warn('[SupabaseAuth] signOut exception:', err);
+    }
+  },
+
+  /**
+   * Subscribe to auth state transitions (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
+   */
+  onAuthStateChange(callback) {
+    if (!isSupabaseConfigured || !supabase) return () => {};
+    try {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        callback(event, session);
+      });
+      return () => {
+        subscription?.unsubscribe();
+      };
+    } catch (err) {
+      console.warn('[SupabaseAuth] onAuthStateChange setup failed:', err);
+      return () => {};
+    }
+  }
+};
+
