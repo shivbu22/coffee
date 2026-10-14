@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Check, 
   Award, 
@@ -21,27 +21,37 @@ export default function SubscriptionModal({
   isOpen, 
   onClose, 
   onUnlockSubscription, 
-  onShowToast 
+  onShowToast,
+  defaultTier = 'premium',
+  initialMode = 'buddysearch_hero'
 }) {
-  const [modalMode, setModalMode] = useState('buddysearch_hero'); // 'buddysearch_hero' | 'select_plan' | 'checkout' | 'success'
-  const [selectedTier, setSelectedTier] = useState('weekly_basic'); // default to ₹49 popular
+  const [modalMode, setModalMode] = useState(initialMode); // 'buddysearch_hero' | 'select_plan' | 'checkout' | 'success'
+  const [selectedTier, setSelectedTier] = useState(defaultTier); // default to ₹599 (12 Months, Most Popular)
   const [couponCode, setCouponCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0); // in percent
   const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultTier) setSelectedTier(defaultTier);
+      if (initialMode) setModalMode(initialMode);
+    }
+  }, [isOpen, defaultTier, initialMode]);
+
   if (!isOpen) return null;
 
-  const activePlan = SUBSCRIPTION_PLANS.find(p => p.tier === selectedTier) || SUBSCRIPTION_PLANS[1];
+  const activePlan = SUBSCRIPTION_PLANS.find(p => p.tier === selectedTier) || SUBSCRIPTION_PLANS[2];
   const finalPrice = Math.max(1, Math.round(activePlan.price * (1 - appliedDiscount / 100)));
 
   const handleApplyCoupon = (e) => {
     e.preventDefault();
-    if (couponCode.trim().toUpperCase() === 'BUDDY50' || couponCode.trim().toUpperCase() === 'BUDDYSEARCH50' || couponCode.trim().toUpperCase() === 'FINDCO50') {
+    const code = couponCode.trim().toUpperCase();
+    if (code === 'BUDDY50' || code === 'BUDDYSEARCH50' || code === 'FINDCO50') {
       setAppliedDiscount(50);
       onShowToast('Coupon applied! 50% discount activated.', 'success');
-    } else if (couponCode.trim().toUpperCase() === 'FREEPASS') {
+    } else if (code === 'FINDCO100' || code === 'FREEPASS') {
       setAppliedDiscount(100);
-      onShowToast('Coupon FREEPASS applied! 100% Free Pass.', 'success');
+      onShowToast('VIP Pass applied! 100% Free Access.', 'success');
     } else {
       onShowToast('Invalid or expired coupon code. Try "BUDDY50"', 'error');
     }
@@ -81,7 +91,7 @@ export default function SubscriptionModal({
         className="modal-enter"
         style={{
           width: '100%',
-          maxWidth: modalMode === 'select_plan' ? 620 : 430,
+          maxWidth: modalMode === 'select_plan' ? 680 : 440,
           background: 'var(--bg-card, #ffffff)',
           borderRadius: 28,
           overflow: 'hidden',
@@ -336,14 +346,14 @@ export default function SubscriptionModal({
                 fontSize: '0.78rem',
                 color: 'var(--text-muted, #94a3b8)'
               }}>
-                Starts at <strong style={{ color: 'var(--text-main, #334155)' }}>₹299/month</strong> · Micro-Pass from <strong>₹9/day</strong>
+                Starts at <strong style={{ color: 'var(--text-main, #334155)' }}>₹299 (3 Months)</strong> · Premium from <strong>₹50/mo</strong> · Star Member <strong>₹799 Lifetime</strong>
               </div>
             </div>
           </div>
         )}
 
         {/* ==================================================== */}
-        {/* 2. CHOOSE PLAN VIEW (Micro-pass ₹9, Weekly ₹49, Monthly ₹299) */}
+        {/* 2. CHOOSE PLAN VIEW (BuddySearch 4 Tiers: Basic, Standard, Premium, Star) */}
         {/* ==================================================== */}
         {modalMode === 'select_plan' && (
           <div style={{ padding: '28px 24px' }}>
@@ -367,54 +377,90 @@ export default function SubscriptionModal({
                 Choose Your Pass
               </h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Instant access to verified chats, requests, and direct companion quotes.
+                Instant access to verified companion chats, requests, and direct proposals.
               </p>
             </div>
 
-            {/* Plans List */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 20 }}>
+            {/* Plans List (4 BuddySearch Tiers) */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))', 
+              gap: 10, 
+              marginBottom: 20 
+            }}>
               {SUBSCRIPTION_PLANS.map(p => {
                 const isSelected = p.tier === selectedTier;
+                const isStar = p.tier === 'star_member';
                 return (
                   <div
                     key={p.tier}
                     onClick={() => setSelectedTier(p.tier)}
                     style={{
                       border: isSelected ? '2px solid #e11d48' : '1px solid var(--border-subtle)',
-                      background: isSelected ? '#fff1f2' : 'var(--bg-elevated)',
+                      background: isSelected ? '#fff1f2' : (isStar ? 'rgba(217, 119, 6, 0.04)' : 'var(--bg-elevated)'),
                       borderRadius: 16,
-                      padding: '14px 12px',
+                      padding: '16px 10px 14px 10px',
                       cursor: 'pointer',
                       textAlign: 'center',
                       position: 'relative',
-                      transition: 'all var(--transition-fast)'
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      transition: 'all var(--transition-fast)',
+                      boxShadow: isSelected ? '0 8px 20px -6px rgba(225, 29, 72, 0.25)' : 'none'
                     }}
                   >
-                    {p.popular && (
+                    {(p.popular || isStar) && (
                       <span style={{
                         position: 'absolute',
                         top: -9,
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        background: '#e11d48',
+                        background: p.popular ? '#e11d48' : '#d97706',
                         color: '#ffffff',
-                        fontSize: '0.58rem',
+                        fontSize: '0.56rem',
                         fontWeight: 800,
-                        padding: '1px 6px',
+                        padding: '2px 7px',
                         borderRadius: 9999,
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
+                        letterSpacing: '0.04em'
                       }}>
-                        POPULAR
+                        {p.popular ? 'MOST POPULAR' : 'LIFETIME VIP'}
                       </span>
                     )}
-                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 4 }}>
-                      {p.name}
+
+                    <div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 2 }}>
+                        {p.name}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                        {p.validity}
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
+                        <span style={{ fontSize: '1.35rem', fontWeight: 900, color: p.popular ? '#e11d48' : (isStar ? '#d97706' : '#0f172a') }} className="tabular-nums">
+                          ₹{p.price}
+                        </span>
+                        <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '0.72rem' }} className="tabular-nums">
+                          ₹{p.originalPrice}
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#e11d48' }} className="tabular-nums">
-                      ₹{p.price}
-                    </div>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                      {p.validity}
+
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 800,
+                        color: isSelected ? '#be123c' : '#475569',
+                        background: isSelected ? '#ffe4e6' : '#f1f5f9',
+                        padding: '2px 6px',
+                        borderRadius: 6
+                      }}>
+                        {p.monthlyBreakdown}
+                      </span>
+                      <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 700 }}>
+                        Save {p.discountPercent}%
+                      </span>
                     </div>
                   </div>
                 );

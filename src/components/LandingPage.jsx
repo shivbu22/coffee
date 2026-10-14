@@ -779,10 +779,10 @@ export default function LandingPage({
           boxShadow: 'var(--shadow-sm)'
         }}>
           <h2 style={{ fontSize: '2.4rem', marginBottom: 12 }}>
-            Start Exploring Companions for Just <span style={{ color: 'var(--color-primary)' }} className="tabular-nums">₹9 / Day</span>
+            Start Connecting with Companions from <span style={{ color: 'var(--color-primary)' }} className="tabular-nums">₹50 / Month</span>
           </h2>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: 580, margin: '0 auto 28px auto', fontSize: '1rem' }}>
-            No subscriptions or hidden commitments. Unlock full companion chat privileges, post activity requests, and find someone for your next adventure.
+          <p style={{ color: 'var(--text-secondary)', maxWidth: 620, margin: '0 auto 28px auto', fontSize: '1rem', lineHeight: 1.6 }}>
+            Transparent BuddySearch-inspired multi-month memberships and Lifetime Star passes. Unlock verified companion chat privileges, request hangouts, and explore together safely.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
             <button
@@ -792,7 +792,7 @@ export default function LandingPage({
               style={{ padding: '14px 34px', fontSize: '1.05rem' }}
             >
               <Award size={18} />
-              Claim ₹9 Pass Now
+              Explore Membership Plans
             </button>
             <button
               type="button"

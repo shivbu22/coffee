@@ -653,7 +653,7 @@ export default function BuddyFeedView({
                 India's #1 Live Social Companion Exchange
               </div>
               <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 2 }}>
-                Browse companion gig requests freely. Sending hire proposals, custom rate bids, and direct messages requires an active Pass (from ₹9/day).
+                Browse companion gig requests freely. Sending hire proposals, custom rate bids, and direct messages requires an active Membership (from ₹50/mo or ₹799 Lifetime).
               </div>
             </div>
           </div>
@@ -679,7 +679,7 @@ export default function BuddyFeedView({
             onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
           >
             <Award size={16} />
-            <span>Unlock Pass (₹9)</span>
+            <span>Unlock Membership Plans</span>
           </button>
         </div>
       )}

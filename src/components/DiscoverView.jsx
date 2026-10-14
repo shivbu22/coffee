@@ -261,7 +261,7 @@ export default function DiscoverView({
                   Explore 14,200+ Verified Companions Across India
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 2 }}>
-                  Browse portfolios freely. Direct 1-on-1 private messaging and escrow hangouts require an active FindCo Pass (from ₹9/day).
+                  Browse portfolios freely. Direct 1-on-1 private messaging and escrow hangouts require an active FindCo Membership (from ₹50/mo or ₹799 Lifetime).
                 </div>
               </div>
             </div>
@@ -287,7 +287,7 @@ export default function DiscoverView({
               onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
             >
               <Award size={16} />
-              <span>Unlock Pass (₹9)</span>
+              <span>Unlock Membership Plans</span>
             </button>
           </div>
         )}

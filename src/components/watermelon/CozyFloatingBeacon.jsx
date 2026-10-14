@@ -112,7 +112,7 @@ export default function CozyFloatingBeacon({ onOpenFeed, onOpenSubscribe }) {
                 className="btn-secondary"
                 style={{ padding: '9px 12px', fontSize: '0.8rem', borderRadius: 9999 }}
               >
-                <span>Pass ₹9</span>
+                <span>VIP Plans</span>
               </button>
             </div>
           </motion.div>

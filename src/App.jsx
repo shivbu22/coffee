@@ -42,7 +42,8 @@ export default function App() {
   const [role, setRole] = useState('client'); // 'client' | 'buddy'
   
   // Persistent Membership state from AntiVibe StorageEngine
-  const [hasActiveSub, setHasActiveSub] = useState(() => StorageEngine.getMembership().hasActiveSub);
+  const [membership, setMembership] = useState(() => StorageEngine.getMembership());
+  const hasActiveSub = !!membership?.hasActiveSub;
   const [cityFilter, setCityFilter] = useState('All Cities');
   const [theme, setTheme] = useState('light'); // 'light' is the requested clean UI default
 
@@ -71,8 +72,10 @@ export default function App() {
   const [isHallmarkModalOpen, setIsHallmarkModalOpen] = useState(false);
   const [selectedHallmarkData, setSelectedHallmarkData] = useState(null);
 
-  // Modals
+  // Modals & Subscription Selection
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
+  const [subscribeModalTier, setSubscribeModalTier] = useState('premium');
+  const [subscribeModalMode, setSubscribeModalMode] = useState('buddysearch_hero');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState('room_1');
 
@@ -102,8 +105,8 @@ export default function App() {
   }, [buddyProfile]);
 
   useEffect(() => {
-    StorageEngine.setMembership({ hasActiveSub, tier: hasActiveSub ? 'weekly_basic' : null });
-  }, [hasActiveSub]);
+    StorageEngine.setMembership(membership);
+  }, [membership]);
 
   // Toast System
   const [toast, setToast] = useState(null);
@@ -115,9 +118,22 @@ export default function App() {
     }, 4000);
   };
 
-  const handleUnlockSubscription = (tier) => {
-    setHasActiveSub(true);
-    showToast(`Membership active! All platform features and feed requests unlocked.`, 'success');
+  const handleUnlockSubscription = (tier = 'premium') => {
+    const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.tier === tier) || SUBSCRIPTION_PLANS[2];
+    const expiryDate = tier === 'star_member' 
+      ? 'Lifetime VIP Access' 
+      : new Date(Date.now() + (tier === 'basic' ? 90 : tier === 'standard' ? 180 : 365) * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    
+    const newMembership = {
+      hasActiveSub: true,
+      tier: tier,
+      planName: selectedPlan.name,
+      validity: selectedPlan.validity,
+      expiryDate
+    };
+    setMembership(newMembership);
+    StorageEngine.setMembership(newMembership);
+    showToast(`Membership active! ${selectedPlan.name} (${selectedPlan.validity}) is now active on your account.`, 'success');
   };
 
   const handleStartChatWithCompanion = (companion) => {
@@ -521,15 +537,15 @@ export default function App() {
           )}
 
           {activeTab === 'subscriptions' && (
-            <div style={{ maxWidth: 980, margin: '0 auto', padding: '20px 0 80px 0' }}>
+            <div style={{ maxWidth: 1080, margin: '0 auto', padding: '20px 0 80px 0' }}>
               <div style={{ textAlign: 'center', marginBottom: 36 }}>
                 <h1 style={{ fontSize: '2.2rem', marginBottom: 8, fontWeight: 800, letterSpacing: '-0.025em' }}>FindCo Membership Passes</h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.96rem', maxWidth: 620, margin: '0 auto' }}>
-                  Friendship-first transparent pricing. Start with our <strong>₹9 / Day</strong> micro-pass or grab the popular <strong>₹49 / Week</strong> pass.
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.96rem', maxWidth: 640, margin: '0 auto', lineHeight: 1.6 }}>
+                  Direct inspiration from <strong>BuddySearch</strong>: transparent multi-month plans starting at just <strong>₹50/month</strong>, or grab the <strong>Star Member Lifetime Pass</strong> for ₹799.
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
                 {SUBSCRIPTION_PLANS.map(p => (
                   <div 
                     key={p.tier}
@@ -540,44 +556,64 @@ export default function App() {
                       display: 'flex',
                       flexDirection: 'column',
                       position: 'relative',
-                      border: p.popular ? '2px solid var(--color-primary)' : '1px solid var(--border-subtle)',
-                      background: p.popular ? 'var(--color-primary-bg)' : 'var(--bg-card)'
+                      border: p.popular ? '2px solid var(--color-primary)' : p.tier === 'star_member' ? '2px solid #d97706' : '1px solid var(--border-subtle)',
+                      background: p.popular ? 'var(--color-primary-bg)' : p.tier === 'star_member' ? 'linear-gradient(180deg, rgba(217, 119, 6, 0.05) 0%, var(--bg-card) 100%)' : 'var(--bg-card)',
+                      boxShadow: p.popular ? '0 12px 30px -10px rgba(235, 94, 40, 0.25)' : 'none'
                     }}
                   >
-                    {p.popular && (
+                    {p.tag && (
                       <div style={{
                         position: 'absolute',
                         top: -12,
                         right: 18,
-                        background: 'var(--color-primary)',
+                        background: p.tagColor || (p.popular ? 'var(--color-primary)' : '#1e293b'),
                         color: '#ffffff',
                         fontWeight: 800,
-                        fontSize: '0.68rem',
+                        fontSize: '0.66rem',
+                        letterSpacing: '0.04em',
                         padding: '3px 10px',
                         borderRadius: 'var(--radius-full)',
                         boxShadow: 'var(--shadow-sm)'
                       }}>
-                        MOST POPULAR
+                        {p.tag}
                       </div>
                     )}
 
-                    <h3 style={{ fontSize: '1.2rem', marginBottom: 4 }}>{p.name}</h3>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                      Valid for {p.validity}
+                    <h3 style={{ fontSize: '1.25rem', marginBottom: 4, fontWeight: 800 }}>{p.name}</h3>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {p.validity}
+                      </span>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: p.popular ? 'var(--color-primary)' : p.tier === 'star_member' ? '#d97706' : '#059669',
+                        background: p.popular ? 'rgba(235, 94, 40, 0.1)' : p.tier === 'star_member' ? 'rgba(217, 119, 6, 0.12)' : 'rgba(16, 185, 129, 0.1)',
+                        padding: '2px 8px',
+                        borderRadius: 999
+                      }}>
+                        {p.monthlyBreakdown}
+                      </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 20 }}>
-                      <span style={{ fontSize: '2.2rem', fontWeight: 900, color: 'var(--color-primary)' }} className="tabular-nums">
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: '2.3rem', fontWeight: 900, color: p.popular ? 'var(--color-primary)' : p.tier === 'star_member' ? '#d97706' : 'var(--text-primary)' }} className="tabular-nums">
                         ₹{p.price}
                       </span>
                       <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.9rem' }} className="tabular-nums">
                         ₹{p.originalPrice}
                       </span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a', marginLeft: 'auto' }}>
+                        {p.discountPercent}% OFF
+                      </span>
                     </div>
+
+                    <div style={{ height: 1, background: 'var(--border-subtle)', margin: '14px 0 16px 0' }} />
 
                     <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 28, flex: 1 }}>
                       {p.features.map(f => (
-                        <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                        <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, lineHeight: 1.4 }}>
                           <span className="pass-feature-bullet" />
                           <span>{f}</span>
                         </li>
@@ -586,9 +622,19 @@ export default function App() {
 
                     <button
                       type="button"
-                      onClick={() => setIsSubscribeModalOpen(true)}
+                      onClick={() => {
+                        setSubscribeModalTier(p.tier);
+                        setSubscribeModalMode('select_plan');
+                        setIsSubscribeModalOpen(true);
+                      }}
                       className={p.popular ? 'btn-primary' : 'btn-secondary'}
-                      style={{ width: '100%', padding: '12px', fontSize: '0.92rem' }}
+                      style={{ 
+                        width: '100%', 
+                        padding: '12px', 
+                        fontSize: '0.92rem', 
+                        fontWeight: 700,
+                        ...(p.tier === 'star_member' ? { background: '#d97706', color: '#fff', borderColor: '#d97706' } : {})
+                      }}
                     >
                       Unlock Pass (₹{p.price})
                     </button>
@@ -614,6 +660,8 @@ export default function App() {
         onClose={() => setIsSubscribeModalOpen(false)}
         onUnlockSubscription={handleUnlockSubscription}
         onShowToast={showToast}
+        defaultTier={subscribeModalTier}
+        initialMode={subscribeModalMode}
       />
 
       <PostRequestModal 

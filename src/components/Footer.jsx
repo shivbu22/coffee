@@ -385,7 +385,7 @@ export default function Footer({
                   e.currentTarget.style.transform = 'translateX(0)';
                 }}
               >
-                <span>Micro-Passes</span>
+                <span>Membership Plans</span>
                 <span style={{
                   fontSize: '0.62rem',
                   padding: '1px 5px',
@@ -394,7 +394,7 @@ export default function Footer({
                   color: 'var(--color-emerald)',
                   fontWeight: 800
                 }}>
-                  ₹9 / Day
+                  From ₹50/mo
                 </span>
               </button>
             </li>

@@ -453,71 +453,83 @@ export const INITIAL_KYC_REQUESTS = [
 
 export const SUBSCRIPTION_PLANS = [
   {
-    tier: 'daily_basic',
-    name: '1-Day Basic Pass',
-    price: 9,
-    originalPrice: 49,
-    validity: '24 Hours',
-    tag: 'TRIAL',
-    tagColor: 'var(--color-emerald)',
+    tier: 'basic',
+    name: 'Basic Plan',
+    price: 299,
+    originalPrice: 499,
+    validity: '3 Months',
+    monthlyBreakdown: '₹100/mo',
+    discountPercent: 40,
+    tag: 'STARTER',
+    tagColor: '#64748b',
+    popular: false,
     features: [
-      'Unlimited Feed Browsing',
-      'Send up to 3 Connection Requests',
-      'Verified Badge visibility for 24h',
-      'Direct chat access once accepted'
-    ],
-    popular: false
+      'Browse Discovery Feed & Detailed Profiles',
+      'Post up to 5 Hangout Requests / month',
+      'Direct 1-on-1 private messaging on accepted plans',
+      'Standard listing placement in your city',
+      'Verified Badge visibility for 3 Months'
+    ]
   },
   {
-    tier: 'weekly_basic',
-    name: '7-Day Explorer',
-    price: 49,
-    originalPrice: 299,
-    validity: '7 Days',
+    tier: 'standard',
+    name: 'Standard Plan',
+    price: 399,
+    originalPrice: 999,
+    validity: '6 Months',
+    monthlyBreakdown: '₹67/mo',
+    discountPercent: 60,
+    tag: 'POPULAR CHOICE',
+    tagColor: '#3b82f6',
+    popular: false,
+    features: [
+      'Everything in Basic Plan',
+      'Post up to 10 Hangout Requests / month',
+      'Higher Priority algorithm placement',
+      'Display verified social handles on profile',
+      'SMS & WhatsApp instant applicant alerts',
+      'Propose custom counter-rates on client requests'
+    ]
+  },
+  {
+    tier: 'premium',
+    name: 'Premium Plan',
+    price: 599,
+    originalPrice: 1599,
+    validity: '12 Months (1 Year)',
+    monthlyBreakdown: '₹50/mo',
+    discountPercent: 63,
     tag: 'MOST POPULAR',
     tagColor: 'var(--color-primary)',
+    popular: true,
     features: [
-      'Unlimited In-Feed Connection Requests',
-      'Propose Custom Rates on Client Requests',
-      'Priority Matching in your City',
-      'WhatsApp / SMS instant alerts',
-      'Full Access to In-Chat Negotiations'
-    ],
-    popular: true
-  },
-  {
-    tier: 'basic',
-    name: 'Monthly Pro',
-    price: 299,
-    originalPrice: 999,
-    validity: '30 Days',
-    tag: 'VALUE',
-    tagColor: 'var(--color-rose)',
-    features: [
-      'Everything in 7-Day Explorer',
-      'Priority Search Algorithm Boost',
-      'Identity Vault Verified Shield',
-      'Zero Commission on In-Chat Quotes',
-      'Access to Exclusive Hangout Events'
-    ],
-    popular: false
+      'Everything in Standard Plan',
+      'Post up to 15 Hangout Requests / month',
+      'Top-tier Priority Placement in Companion Directory',
+      'Profile Pinning in City Explorer section',
+      '0% Platform commission on in-chat custom quotes',
+      'Escrow SafeGuard VIP Protection'
+    ]
   },
   {
     tier: 'star_member',
     name: 'Star Member VIP',
-    price: 999,
-    originalPrice: 2499,
-    validity: '90 Days',
-    tag: 'ELITE',
-    tagColor: 'var(--color-gold)',
+    price: 799,
+    originalPrice: 2999,
+    validity: 'Lifetime Access',
+    monthlyBreakdown: 'One-time Payment',
+    discountPercent: 73,
+    tag: 'BEST VALUE • LIFETIME',
+    tagColor: '#d97706',
+    popular: false,
     features: [
-      'Gold Star Spotlight Badge on Profile',
-      'Top placement on City Companion Feed',
-      'Unlimited requests & custom offers',
-      'Dedicated 24/7 VIP Concierge Support',
-      'Private Invite-Only Travel & Dining Clubs'
-    ],
-    popular: false
+      'Lifetime Access — Never pay renewal fees again',
+      'Unlimited Hangout & Activity Plan Requests',
+      'Exclusive Gold Star VIP Badge on your profile',
+      'Perpetual Top #1 placement in Discovery & Feed',
+      'Instant direct contact privileges with verified companions',
+      '24/7 Dedicated Concierge Support line'
+    ]
   }
 ];
 
@@ -585,10 +597,10 @@ export const DEFAULT_BUDDY_PROFILE = {
     acceptanceRate: '96%'
   },
   membership: {
-    planName: '7-Day Explorer Active',
-    expiresIn: '5 Days',
-    validUntil: 'Oct 19, 2026',
-    tier: 'weekly_basic'
+    planName: 'Premium 12-Month Pass Active',
+    expiresIn: '342 Days',
+    validUntil: 'Sep 21, 2027',
+    tier: 'premium'
   },
   recentBookings: [
     { id: 'b_1', clientName: 'Rohan Varma', city: 'Bengaluru', service: 'Cafe & Dining Buddy', date: 'Yesterday, 4:30 PM', amount: 900, status: 'Completed', rating: 5.0 },

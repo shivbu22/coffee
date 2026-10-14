@@ -349,7 +349,7 @@ export default function Navbar({
                   }}
                 >
                   <Award size={13} color="var(--color-gold)" />
-                  <span>Pass ₹9</span>
+                  <span>VIP Plans</span>
                 </button>
               )}
 
