@@ -249,43 +249,7 @@ export default function Navbar({
           gap: 10,
           flexShrink: 0
         }}>
-          {/* Antigravity Intelligent Agent Concierge Button */}
-          <button
-            type="button"
-            onClick={onOpenAntigravityAgent}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 14px',
-              fontSize: '0.82rem',
-              borderRadius: 'var(--radius-full)',
-              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-              color: '#ffffff',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.2)',
-              transition: 'var(--transition-fast)',
-              whiteSpace: 'nowrap'
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-            title="Open Antigravity Autonomous Companion Concierge"
-          >
-            <Bot size={15} color="#38bdf8" />
-            <span>AI Concierge</span>
-            <span style={{
-              background: '#38bdf8',
-              color: '#0f172a',
-              fontSize: '0.62rem',
-              fontWeight: 900,
-              padding: '1px 5px',
-              borderRadius: 6
-            }}>
-              AGENT
-            </span>
-          </button>
+
 
           {!isLoggedIn ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
