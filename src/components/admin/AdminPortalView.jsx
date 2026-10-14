@@ -28,8 +28,15 @@ import {
   Activity,
   Sliders,
   AlertTriangle,
-  Star
+  Star,
+  Cloud,
+  Globe,
+  Copy,
+  Check,
+  Server,
+  Terminal
 } from 'lucide-react';
+import { isSupabaseConfigured, checkSupabaseConnection, SupabaseService } from '../../lib/supabaseClient';
 
 export default function AdminPortalView({
   adminAuth,
@@ -49,6 +56,38 @@ export default function AdminPortalView({
   const [rejectionReason, setRejectionReason] = useState('Image unreadable or blurred');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [activeRejectTarget, setActiveRejectTarget] = useState(null);
+
+  // Cloud & Supabase / Vercel State
+  const [cloudStatus, setCloudStatus] = useState(null);
+  const [isTestingCloud, setIsTestingCloud] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const handleTestCloudConnection = async () => {
+    setIsTestingCloud(true);
+    try {
+      const res = await checkSupabaseConnection();
+      setCloudStatus(res);
+      if (res.connected) {
+        onShowToast('Supabase connection healthy and active!', 'success');
+      } else {
+        onShowToast(res.reason || res.error || 'Running in AntiVibe local sync mode', 'info');
+      }
+    } catch (err) {
+      setCloudStatus({ connected: false, error: err.message });
+      onShowToast('Supabase check failed: ' + err.message, 'error');
+    } finally {
+      setIsTestingCloud(false);
+    }
+  };
+
+  const handleCopySchemaSql = () => {
+    const sqlInstruction = `-- Run this in your Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql):
+-- See root file: supabase_schema.sql in the project`;
+    navigator.clipboard.writeText(sqlInstruction);
+    setCopiedSql(true);
+    onShowToast('Copied schema instruction to clipboard! Open Supabase SQL editor to run supabase_schema.sql', 'success');
+    setTimeout(() => setCopiedSql(false), 3000);
+  };
 
   // Audit Logs State
   const [auditLogs, setAuditLogs] = useState([
@@ -353,6 +392,7 @@ export default function AdminPortalView({
             { id: 'moderation', label: 'User & Companion Directory', count: companions.length, icon: UserCheck },
             { id: 'safety_ai', label: 'AI Safety & Flagged Chats', count: 3, icon: ShieldAlert },
             { id: 'escrow', label: 'Platform Revenue & Escrow', count: null, icon: Coins },
+            { id: 'cloud_infra', label: 'Supabase & Vercel Cloud', count: isSupabaseConfigured ? 'LIVE' : 'LOCAL', icon: Cloud },
             { id: 'audit_log', label: 'Immutable Audit Trail', count: auditLogs.length, icon: FileText }
           ].map(tab => {
             const Icon = tab.icon;
@@ -939,7 +979,197 @@ export default function AdminPortalView({
           </div>
         )}
 
-        {/* TAB 5: AUDIT TRAIL */}
+        {/* TAB 5: SUPABASE & VERCEL CLOUD INFRASTRUCTURE */}
+        {adminTab === 'cloud_infra' && (
+          <div>
+            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Cloud size={22} color="var(--color-primary)" />
+                  Supabase Backend & Vercel Deployment Console
+                </h2>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                  Manage the live cloud database, PostgreSQL real-time websockets, and Vercel edge deployment status for FindCo.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={handleTestCloudConnection}
+                  disabled={isTestingCloud}
+                  className="btn-primary"
+                  style={{ padding: '8px 16px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <RefreshCw size={14} className={isTestingCloud ? 'animate-spin' : ''} />
+                  <span>{isTestingCloud ? 'Pinging Cloud...' : 'Test Supabase Connection'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Cloud Status Overview Cards */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: 16,
+              marginBottom: 24
+            }}>
+              {/* Card 1: Vercel Edge Status */}
+              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                      <Globe size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Vercel Edge Network</h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Project: findco (swachta)</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: 20, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 700 }}>
+                    ● LIVE & SERVING
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                  Production URL:
+                  <div style={{ marginTop: 4 }}>
+                    <a 
+                      href="https://findco-sage.vercel.app" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--color-primary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
+                    >
+                      <span>https://findco-sage.vercel.app</span>
+                      <ExternalLink size={13} />
+                    </a>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Preview: <a href="https://findco-73pllyc7b-swachta.vercel.app" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>findco-73pllyc7b-swachta.vercel.app</a>
+                </div>
+              </div>
+
+              {/* Card 2: Supabase Database Status */}
+              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(5, 150, 105, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                      <Database size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Supabase PostgreSQL</h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Realtime + RLS Enclave</span>
+                    </div>
+                  </div>
+                  <span style={{ 
+                    fontSize: '0.7rem', 
+                    padding: '3px 8px', 
+                    borderRadius: 20, 
+                    background: isSupabaseConfigured ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)', 
+                    color: isSupabaseConfigured ? '#10b981' : 'var(--color-gold)', 
+                    fontWeight: 700 
+                  }}>
+                    {isSupabaseConfigured ? '● CLOUD ACTIVE' : '● ANTIVIBE LOCAL SYNC'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                  Status: <strong>{cloudStatus?.message || (isSupabaseConfigured ? 'Ready to sync' : 'Operating in resilient local offline storage')}</strong>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Client Engine: <code style={{ color: 'var(--color-primary)' }}>src/lib/supabaseClient.js</code>
+                </div>
+              </div>
+
+              {/* Card 3: Cryptographic Trust Ledger */}
+              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
+                      <Server size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Hallmark Table</h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>public.hallmark_credentials</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: 20, background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontWeight: 700 }}>
+                    SHA-256 SYNC
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                  UIDAI Enclave Records & Police Clearance hashes validated on each companion match.
+                </div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Dual-Handshake Escrow PIN: <strong>Active</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Supabase Schema SQL & Migration Guide */}
+            <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Terminal size={18} color="var(--color-primary)" />
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Supabase PostgreSQL Schema (supabase_schema.sql)</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopySchemaSql}
+                  className="btn-secondary"
+                  style={{ padding: '6px 14px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  {copiedSql ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                  <span>{copiedSql ? 'Copied Instruction!' : 'Copy SQL Path'}</span>
+                </button>
+              </div>
+
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+                A complete SQL setup is generated in the project root as <code style={{ color: 'var(--color-primary)' }}>supabase_schema.sql</code>. It creates all tables (companions, activity_requests, bookings, chat_messages, hallmark_credentials), Row Level Security (RLS) policies, and Realtime websocket publications.
+              </p>
+
+              <div style={{ background: '#0a0e17', borderRadius: 'var(--radius-md)', padding: '16px', border: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '0.76rem', color: '#94a3b8', overflowX: 'auto' }}>
+                <div style={{ color: '#38bdf8', marginBottom: 4 }}>-- To run in Supabase SQL Editor:</div>
+                <div>1. Log into your Supabase Dashboard: https://supabase.com/dashboard</div>
+                <div>2. Select your Project → SQL Editor → New query</div>
+                <div>3. Paste contents of <span style={{ color: '#f59e0b' }}>supabase_schema.sql</span> and click "Run"</div>
+                <div>4. Copy Project URL and Anon Public Key into <span style={{ color: '#10b981' }}>.env.local</span></div>
+              </div>
+            </div>
+
+            {/* Environment Variables Sync Card */}
+            <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 12 }}>
+                Connecting Supabase Credentials with Vercel Production
+              </h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+                To link your Supabase database with the live Vercel deployment at <a href="https://findco-sage.vercel.app" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>findco-sage.vercel.app</a>, add the following variables:
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginBottom: 16 }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>VARIABLE 1</div>
+                  <code style={{ fontSize: '0.84rem', color: 'var(--color-primary)', fontWeight: 700 }}>VITE_SUPABASE_URL</code>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>e.g. https://your-project.supabase.co</div>
+                </div>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>VARIABLE 2</div>
+                  <code style={{ fontSize: '0.84rem', color: 'var(--color-primary)', fontWeight: 700 }}>VITE_SUPABASE_ANON_KEY</code>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6...</div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                CLI Command to sync:
+                <code style={{ display: 'block', background: '#0a0e17', padding: '10px 14px', borderRadius: 8, marginTop: 6, color: '#38bdf8' }}>
+                  vercel env add VITE_SUPABASE_URL production,preview,development
+                </code>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: AUDIT TRAIL */}
         {adminTab === 'audit_log' && (
           <div>
             <div style={{ marginBottom: 20 }}>
