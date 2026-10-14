@@ -30,6 +30,7 @@ import {
   Award
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
 
 export default function ChatsView({ 
   chats, 
@@ -82,6 +83,32 @@ export default function ChatsView({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.messages, isTyping]);
 
+  // Supabase Realtime WebSocket subscription for live messages
+  useEffect(() => {
+    if (!isSupabaseConfigured || !selectedRoomId) return;
+    const unsubscribe = SupabaseService.subscribeToRoom(selectedRoomId, (incoming) => {
+      if (incoming.sender_role === role) return; // avoid duplicate local echo
+      setChats(prev => prev.map(c => {
+        if (c.id === selectedRoomId) {
+          if (c.messages.some(m => m.id === incoming.id)) return c;
+          return {
+            ...c,
+            messages: [...c.messages, {
+              id: incoming.id,
+              sender: 'other',
+              text: incoming.text,
+              time: new Date(incoming.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              isRead: true
+            }],
+            lastMessageTime: 'Just now'
+          };
+        }
+        return c;
+      }));
+    });
+    return () => unsubscribe();
+  }, [selectedRoomId, role]);
+
   // Filter conversations
   const filteredChats = chats.filter(c => {
     if (searchQuery.trim()) {
@@ -128,6 +155,16 @@ export default function ChatsView({
     }));
 
     if (!textToSend) setInputText('');
+
+    // Sync to Supabase PostgreSQL Realtime if cloud connected
+    if (isSupabaseConfigured) {
+      SupabaseService.sendMessage({
+        room_id: selectedRoomId,
+        sender_name: role === 'buddy' ? 'Buddy' : 'Client',
+        sender_role: role === 'buddy' ? 'buddy' : 'client',
+        text: text.trim()
+      }).catch(err => console.warn('[Supabase Sync] message delivery fallback:', err));
+    }
 
     // Simulate companion typing and automated reply
     setTimeout(() => {
@@ -256,6 +293,21 @@ export default function ChatsView({
         handshakePin,
         escrowStatus: 'Escrow Locked'
       });
+    }
+
+    if (isSupabaseConfigured) {
+      SupabaseService.createBooking({
+        client_name: 'You (Client)',
+        buddy_name: activeChat?.participant?.name || 'Priya Sharma',
+        activity: 'Cafe & Dining Buddy',
+        date: 'Saturday',
+        time: '03:00 PM',
+        hours: 2,
+        hourly_rate: 400,
+        total_amount: 800,
+        escrow_status: 'LOCKED',
+        handshake_pin: handshakePin
+      }).catch(err => console.warn('[Supabase Sync] booking sync error:', err));
     }
 
     if (onShowToast) onShowToast(`Quote Accepted! ₹800 locked in FindCo Escrow Vault. Handshake PIN: ${handshakePin}.`, 'success');

@@ -25,8 +25,11 @@ import {
   Compass,
   Check,
   Shield,
-  Eye
+  Eye,
+  KeyRound
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
 
 export default function DashboardView({
   dashboardData,
@@ -48,6 +51,12 @@ export default function DashboardView({
   const [lastCheckInTime, setLastCheckInTime] = useState('12 mins ago');
   const [checkInSuccess, setCheckInSuccess] = useState(false);
 
+  // Handshake PIN & Escrow Release Modal State
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [activePinBooking, setActivePinBooking] = useState(null);
+  const [inputHandshakePin, setInputHandshakePin] = useState('');
+  const [pinError, setPinError] = useState('');
+
   // Active session timer countdown simulation
   useEffect(() => {
     const interval = setInterval(() => {
@@ -67,6 +76,73 @@ export default function DashboardView({
     setCopiedPin(true);
     if (onShowToast) onShowToast(`Handshake PIN ${pin} copied to clipboard!`, 'success');
     setTimeout(() => setCopiedPin(false), 2500);
+  };
+
+  const handleOpenPinModal = (booking) => {
+    setActivePinBooking(booking);
+    setInputHandshakePin('');
+    setPinError('');
+    setIsPinModalOpen(true);
+  };
+
+  const handleVerifyHandshakePin = (e) => {
+    e.preventDefault();
+    if (!activePinBooking) return;
+    const entered = inputHandshakePin.trim();
+    if (entered.length !== 4) {
+      setPinError('Please enter the 4-digit PIN provided by your client.');
+      return;
+    }
+
+    if (activePinBooking.handshakePin && entered !== activePinBooking.handshakePin) {
+      setPinError(`Incorrect PIN. The client has provided PIN ${activePinBooking.handshakePin}.`);
+      return;
+    }
+
+    confetti({
+      particleCount: 110,
+      spread: 75,
+      origin: { y: 0.6 }
+    });
+
+    const releaseAmount = activePinBooking.amount || 800;
+
+    // Release escrow into companion wallet balance
+    setDashboardData(prev => ({
+      ...prev,
+      wallet: {
+        ...prev.wallet,
+        availableBalance: prev.wallet.availableBalance + releaseAmount,
+        totalEarnings: prev.wallet.totalEarnings + releaseAmount,
+        escrowLocked: Math.max(0, prev.wallet.escrowLocked - releaseAmount),
+        transactions: [
+          {
+            id: `tx_pin_${Date.now()}`,
+            date: 'Just now',
+            title: `Escrow Released: ${activePinBooking.title}`,
+            amount: releaseAmount,
+            type: 'credit',
+            status: `Dual-Handshake PIN [${entered}] Verified & Funds Released`
+          },
+          ...prev.wallet.transactions
+        ]
+      },
+      upcomingBookings: prev.upcomingBookings.map(b => 
+        b.id === activePinBooking.id 
+          ? { ...b, status: 'completed', escrowStatus: 'Escrow Released' } 
+          : b
+      )
+    }));
+
+    if (isSupabaseConfigured) {
+      SupabaseService.verifyBookingPin(activePinBooking.id, entered)
+        .catch(err => console.warn('[Supabase Sync] verify pin fallback:', err));
+    }
+
+    setIsPinModalOpen(false);
+    if (onShowToast) {
+      onShowToast(`Dual-Handshake Verified! ₹${releaseAmount.toLocaleString('en-IN')} escrow released to your wallet.`, 'success');
+    }
   };
 
   const handlePerformCheckIn = () => {
@@ -1103,35 +1179,68 @@ export default function DashboardView({
                       </button>
                     </>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={onNavigateToChats}
-                      style={{
-                        padding: '8px 16px',
-                        background: '#ffffff',
-                        color: '#0f172a',
-                        border: '1.5px solid #e2e8f0',
-                        borderRadius: 10,
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = '#f8fafc';
-                        e.currentTarget.style.borderColor = '#cbd5e1';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = '#ffffff';
-                        e.currentTarget.style.borderColor = '#e2e8f0';
-                      }}
-                    >
-                      <span>Open Chat</span>
-                      <ChevronRight size={14} color="#64748b" />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {b.status === 'confirmed' && b.escrowStatus !== 'Escrow Released' && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPinModal(b)}
+                          style={{
+                            padding: '8px 16px',
+                            background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: 10,
+                            fontSize: '0.8rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.28)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <KeyRound size={14} />
+                          <span>Release Escrow (Validate PIN)</span>
+                        </button>
+                      )}
+
+                      {b.escrowStatus === 'Escrow Released' && (
+                        <span style={{
+                          padding: '6px 12px',
+                          background: '#ecfdf5',
+                          color: '#059669',
+                          borderRadius: 8,
+                          fontSize: '0.76rem',
+                          fontWeight: 800,
+                          border: '1px solid #a7f3d0'
+                        }}>
+                          ✓ Escrow Released to Payouts
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={onNavigateToChats}
+                        style={{
+                          padding: '8px 14px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          border: '1.5px solid #e2e8f0',
+                          borderRadius: 10,
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span>Open Chat</span>
+                        <ChevronRight size={14} color="#64748b" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1651,6 +1760,169 @@ export default function DashboardView({
                 Cancel (Test / Accidental Trigger)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Handshake PIN Escrow Release Modal */}
+      {isPinModalOpen && activePinBooking && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: 20
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 20,
+            maxWidth: 440,
+            width: '100%',
+            padding: '28px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: '#059669',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <KeyRound size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                    Mutual Handshake Verification
+                  </h3>
+                  <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                    Dual-PIN Nodal Escrow Release
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsPinModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  padding: 4
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ background: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 18, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
+                <span style={{ color: '#64748b' }}>Client:</span>
+                <strong style={{ color: '#0f172a' }}>{activePinBooking.partnerName}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
+                <span style={{ color: '#64748b' }}>Session:</span>
+                <span style={{ color: '#0f172a', fontWeight: 600 }}>{activePinBooking.title}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', paddingTop: 6, borderTop: '1px solid #e2e8f0' }}>
+                <span style={{ color: '#64748b' }}>Escrow Payout to Release:</span>
+                <strong style={{ color: '#059669', fontSize: '1rem' }} className="tabular-nums">
+                  ₹{activePinBooking.amount.toLocaleString('en-IN')}
+                </strong>
+              </div>
+            </div>
+
+            <form onSubmit={handleVerifyHandshakePin}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 8 }}>
+                ENTER CLIENT'S 4-DIGIT PIN
+              </label>
+              
+              <div style={{ position: 'relative', marginBottom: 12 }}>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={inputHandshakePin}
+                  onChange={(e) => {
+                    setInputHandshakePin(e.target.value.replace(/\D/g, ''));
+                    setPinError('');
+                  }}
+                  placeholder="• • • •"
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    fontSize: '1.75rem',
+                    fontWeight: 900,
+                    letterSpacing: '0.4em',
+                    textAlign: 'center',
+                    fontFamily: 'monospace',
+                    borderRadius: 12,
+                    border: pinError ? '2px solid #ef4444' : '2px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#0f172a'
+                  }}
+                />
+              </div>
+
+              {pinError && (
+                <div style={{ color: '#dc2626', fontSize: '0.78rem', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} />
+                  <span>{pinError}</span>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.74rem', color: '#64748b', lineHeight: 1.45, marginBottom: 18 }}>
+                Mutual safety protocol: Ask your client for the 4-digit Handshake PIN shown in their booking voucher. Entering this PIN immediately releases the locked escrow funds directly into your Available Balance.
+              </p>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setIsPinModalOpen(false)}
+                  style={{
+                    flex: 1,
+                    padding: '11px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#475569',
+                    borderRadius: 10,
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 2,
+                    padding: '11px',
+                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 10,
+                    fontSize: '0.86rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  Verify PIN & Release Escrow
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
