@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS public.hallmark_credentials (
 );
 
 -- =========================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS) POLICIES (Idempotent)
 -- =========================================================================
 ALTER TABLE public.companions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_requests ENABLE ROW LEVEL SECURITY;
@@ -119,58 +119,71 @@ ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hallmark_credentials ENABLE ROW LEVEL SECURITY;
 
 -- 1. Companions RLS
+DROP POLICY IF EXISTS "Public can view verified companions" ON public.companions;
 CREATE POLICY "Public can view verified companions" 
     ON public.companions FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Public can insert companion profiles" ON public.companions;
 CREATE POLICY "Public can insert companion profiles" 
     ON public.companions FOR INSERT 
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Companions can update their own profile" ON public.companions;
 CREATE POLICY "Companions can update their own profile" 
     ON public.companions FOR UPDATE 
     USING (true);
 
 -- 2. Activity Requests RLS
+DROP POLICY IF EXISTS "Public can view activity requests" ON public.activity_requests;
 CREATE POLICY "Public can view activity requests" 
     ON public.activity_requests FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Public can insert activity requests" ON public.activity_requests;
 CREATE POLICY "Public can insert activity requests" 
     ON public.activity_requests FOR INSERT 
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Public can update activity requests" ON public.activity_requests;
 CREATE POLICY "Public can update activity requests" 
     ON public.activity_requests FOR UPDATE 
     USING (true);
 
 -- 3. Bookings RLS
+DROP POLICY IF EXISTS "Public can view bookings" ON public.bookings;
 CREATE POLICY "Public can view bookings" 
     ON public.bookings FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Public can insert bookings" ON public.bookings;
 CREATE POLICY "Public can insert bookings" 
     ON public.bookings FOR INSERT 
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Public can verify handshake PIN and release escrow" ON public.bookings;
 CREATE POLICY "Public can verify handshake PIN and release escrow" 
     ON public.bookings FOR UPDATE 
     USING (true);
 
 -- 4. Chat Messages RLS
+DROP POLICY IF EXISTS "Public can view room messages" ON public.chat_messages;
 CREATE POLICY "Public can view room messages" 
     ON public.chat_messages FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Public can insert room messages" ON public.chat_messages;
 CREATE POLICY "Public can insert room messages" 
     ON public.chat_messages FOR INSERT 
     WITH CHECK (true);
 
 -- 5. Hallmark Credentials RLS
+DROP POLICY IF EXISTS "Public can audit hallmark credentials" ON public.hallmark_credentials;
 CREATE POLICY "Public can audit hallmark credentials" 
     ON public.hallmark_credentials FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Public can insert hallmark records" ON public.hallmark_credentials;
 CREATE POLICY "Public can insert hallmark records" 
     ON public.hallmark_credentials FOR INSERT 
     WITH CHECK (true);
@@ -201,6 +214,9 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.bookings;
     END IF;
 END $$;
+
+-- Ensure unique index on hallmark_id to support clean idempotent seeding
+CREATE UNIQUE INDEX IF NOT EXISTS idx_companions_hallmark_id ON public.companions (hallmark_id);
 
 -- =========================================================================
 -- INITIAL SEED DATA (Indian Metros Companions & Verified Hallmark Trust)
@@ -257,7 +273,7 @@ INSERT INTO public.companions (
     'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&h=400&fit=crop&crop=faces',
     false, true, 48, 'HLM-HYD-UIDAI-5519-A', 'd234901f4c8209bb427ae41e4649b934ca495991b7852be3b0c44298fc1c149a'
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (hallmark_id) DO NOTHING;
 
 -- Initial Hallmark Cryptographic Trust Credentials
 INSERT INTO public.hallmark_credentials (
