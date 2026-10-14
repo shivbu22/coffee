@@ -341,9 +341,11 @@ export default function App() {
           {/* Footer for Landing */}
           <Footer 
             setActiveTab={setActiveTab}
+            setCityFilter={setCityFilter}
             onOpenAdminPortal={() => setSiteMode('admin')}
             onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
             onOpenPostRequest={handlePostRequestClick}
+            onOpenAuth={handleOpenAuth}
           />
         </>
       ) : (
