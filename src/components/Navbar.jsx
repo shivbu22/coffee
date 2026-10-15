@@ -55,6 +55,16 @@ export default function Navbar({
   const userAvatar = currentUser?.avatar || buddyProfile?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces';
   const userCity = currentUser?.city || buddyProfile?.city || 'Bengaluru';
 
+  const handleProtectedTab = (tabId, targetRole = 'client') => {
+    if (!isLoggedIn) {
+      if (onOpenAuth) {
+        onOpenAuth(targetRole, tabId);
+      }
+      return;
+    }
+    setActiveTab(tabId);
+  };
+
   return (
     <header style={{
       position: 'sticky',
@@ -87,6 +97,7 @@ export default function Navbar({
 
         {/* Center Streamlined Navigation */}
         <nav 
+          aria-label="Main Navigation"
           className="nav-scroll-mobile"
           style={{
             display: 'flex',
@@ -103,7 +114,8 @@ export default function Navbar({
           {/* Feed */}
           <button 
             type="button"
-            onClick={() => setActiveTab('feed')}
+            onClick={() => handleProtectedTab('feed')}
+            title={!isLoggedIn ? 'Sign in to access Feed' : undefined}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -122,13 +134,14 @@ export default function Navbar({
             }}
           >
             <Rss size={14} color={activeTab === 'feed' ? 'var(--color-primary-hover)' : 'currentColor'} />
-            Feed
+            <span>Feed</span>
           </button>
 
           {/* Discover */}
           <button 
             type="button"
-            onClick={() => setActiveTab('discover')}
+            onClick={() => handleProtectedTab('discover')}
+            title={!isLoggedIn ? 'Sign in to access Discover' : undefined}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -147,13 +160,14 @@ export default function Navbar({
             }}
           >
             <Search size={14} color={activeTab === 'discover' ? 'var(--color-primary-hover)' : 'currentColor'} />
-            Discover
+            <span>Discover</span>
           </button>
 
           {/* Chats */}
           <button 
             type="button"
-            onClick={() => setActiveTab('chats')}
+            onClick={() => handleProtectedTab('chats')}
+            title={!isLoggedIn ? 'Sign in to access Chats' : undefined}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -173,8 +187,8 @@ export default function Navbar({
             }}
           >
             <MessageSquare size={14} color={activeTab === 'chats' ? 'var(--color-primary-hover)' : 'currentColor'} />
-            Chats
-            {unreadCount > 0 && (
+            <span>Chats</span>
+            {unreadCount > 0 && isLoggedIn && (
               <span style={{
                 background: 'var(--color-rose)',
                 color: '#fff',
@@ -193,7 +207,8 @@ export default function Navbar({
           {role === 'buddy' && (
             <button 
               type="button"
-              onClick={() => setActiveTab('profile')}
+              onClick={() => handleProtectedTab('profile', 'buddy')}
+              title={!isLoggedIn ? 'Sign in to access Studio' : undefined}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -212,14 +227,15 @@ export default function Navbar({
               }}
             >
               <User size={14} color={activeTab === 'profile' ? 'var(--color-primary-hover)' : 'currentColor'} />
-              Studio
+              <span>Studio</span>
             </button>
           )}
 
           {/* Plans */}
           <button 
             type="button"
-            onClick={() => setActiveTab('subscriptions')}
+            onClick={() => handleProtectedTab('subscriptions')}
+            title={!isLoggedIn ? 'Sign in to access Plans' : undefined}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -238,7 +254,7 @@ export default function Navbar({
             }}
           >
             <CreditCard size={14} color={activeTab === 'subscriptions' ? 'var(--color-primary-hover)' : 'currentColor'} />
-            Plans
+            <span>Plans</span>
           </button>
         </nav>
 

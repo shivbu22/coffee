@@ -6,7 +6,6 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   ArrowUpRight, 
-  ArrowDownLeft,
   Wallet, 
   Calendar, 
   User, 
@@ -14,18 +13,10 @@ import {
   Phone, 
   ChevronRight, 
   Sparkles,
-  RefreshCw,
   Copy,
-  ExternalLink,
-  SlidersHorizontal,
   X,
-  CreditCard,
   Building2,
-  Bell,
-  Compass,
   Check,
-  Shield,
-  Eye,
   KeyRound
 } from 'lucide-react';
 import confetti from 'canvas-confetti';

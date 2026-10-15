@@ -9,7 +9,6 @@ import {
   Tag, 
   Award, 
   Lock, 
-  ArrowUpRight, 
   Coins, 
   Plus, 
   Filter,
@@ -28,14 +27,10 @@ import {
   ShoppingBag,
   Laptop,
   Map,
-  Sparkles,
   Calendar,
   Check,
-  ChevronRight,
-  TrendingUp,
-  UserCheck,
-  Zap,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Zap
 } from 'lucide-react';
 import { CITIES } from '../data/mockData';
 
@@ -55,7 +50,6 @@ export default function BuddyFeedView({
   setRequests, 
   hasActiveSub, 
   onOpenSubscribe, 
-  onUnlockSubscription,
   onOpenPostRequest, 
   onNavigateToChat,
   onShowToast

@@ -196,30 +196,6 @@ export default function Footer({
           <p style={{ fontSize: '0.84rem', lineHeight: 1.65, color: 'var(--text-muted)', marginBottom: 18 }}>
             India’s dedicated social companionship and co-activity hiring network. Connect with vetted, Aadhaar-verified local buddies for dining, movies, fitness, and city exploration.
           </p>
-
-          {/* Live Activity Status Pill */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 12px',
-            borderRadius: 'var(--radius-full)',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            fontSize: '0.75rem',
-            color: 'var(--text-main)',
-            fontWeight: 700,
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <span style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: 'var(--color-emerald)',
-              boxShadow: '0 0 8px rgba(16, 185, 129, 0.7)'
-            }} />
-            <span>1,327+ Buddies Online across 8 Metros</span>
-          </div>
         </div>
 
         {/* Column 2: Explore Platform */}

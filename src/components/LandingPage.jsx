@@ -75,31 +75,6 @@ export default function LandingPage({
       }}>
         <div style={{ maxWidth: 1140, margin: '0 auto', textAlign: 'center' }}>
           
-          {/* Live Activity & Presence Ticker */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '5px 14px',
-            borderRadius: 'var(--radius-full)',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-sm)',
-            marginBottom: 20
-          }}>
-            <span style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: 'var(--color-emerald, #059669)',
-              boxShadow: '0 0 8px rgba(5, 150, 105, 0.6)',
-              animation: 'pulse 1.8s infinite'
-            }} />
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)' }} className="tabular-nums">
-              {PLATFORM_STATS.onlineBuddies.toLocaleString('en-IN')}+ Buddies Online Right Now
-            </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>• India’s #1 Platform</span>
-          </div>
 
           {/* Main Hero Headline */}
           <h1 style={{

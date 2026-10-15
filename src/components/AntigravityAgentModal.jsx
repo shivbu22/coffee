@@ -50,6 +50,16 @@ export default function AntigravityAgentModal({
     }
   }, [messages, isGenerating]);
 
+  // Accessibility: Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSendPrompt = async (promptText) => {
@@ -138,6 +148,9 @@ export default function AntigravityAgentModal({
       onClick={onClose}
     >
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="antigravity-modal-title"
         style={{
           background: 'var(--bg-card, #ffffff)',
           color: 'var(--text-main, #0f172a)',
@@ -180,7 +193,7 @@ export default function AntigravityAgentModal({
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: '#ffffff' }}>
+                <h3 id="antigravity-modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: '#ffffff' }}>
                   FindCo Antigravity Concierge
                 </h3>
                 <span style={{

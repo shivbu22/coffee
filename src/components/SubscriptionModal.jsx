@@ -38,9 +38,19 @@ export default function SubscriptionModal({
     }
   }, [isOpen, defaultTier, initialMode]);
 
+  // Accessibility: Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  const activePlan = SUBSCRIPTION_PLANS.find(p => p.tier === selectedTier) || SUBSCRIPTION_PLANS[2];
+  const activePlan = SUBSCRIPTION_PLANS.find(p => p.tier === selectedTier || (selectedTier === 'star' && p.tier === 'star_member')) || SUBSCRIPTION_PLANS[2];
   const finalPrice = Math.max(1, Math.round(activePlan.price * (1 - appliedDiscount / 100)));
 
   const handleApplyCoupon = (e) => {
@@ -88,6 +98,9 @@ export default function SubscriptionModal({
       padding: 16
     }}>
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="subscription-modal-title"
         className="modal-enter"
         style={{
           width: '100%',

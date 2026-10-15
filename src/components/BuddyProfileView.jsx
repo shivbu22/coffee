@@ -1,43 +1,30 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
-  User, 
   MapPin, 
   Phone, 
   ShieldCheck, 
   Star, 
   Coins, 
-  Calendar, 
   CheckCircle2, 
   ExternalLink, 
   Edit3, 
   Camera, 
   Save, 
-  AlertCircle, 
   ArrowUpRight, 
   Clock, 
-  Heart, 
-  Eye, 
   Share2, 
-  Lock, 
   Coffee, 
   Compass, 
-  Dumbbell, 
-  Moon, 
-  Film, 
-  ShoppingBag, 
-  Laptop, 
-  Globe,
-  Link2,
-  X,
-  Check,
-  ChevronRight,
-  TrendingUp,
-  AlertTriangle,
-  Award,
-  Sparkles,
-  Wallet,
-  ChevronDown,
-  ChevronUp
+  X, 
+  Check, 
+  TrendingUp, 
+  AlertTriangle, 
+  Award, 
+  Sparkles, 
+  Wallet, 
+  ChevronDown, 
+  ChevronUp,
+  Eye
 } from 'lucide-react';
 import { INDIAN_STATES, CATEGORIES } from '../data/mockData';
 
@@ -391,6 +378,21 @@ export default function BuddyProfileView({
                 }}>
                   <Award size={12} />
                   Top Rated Companion
+                </span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: statusBadge.bg,
+                  color: statusBadge.color,
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  padding: '3px 9px',
+                  borderRadius: 9999,
+                  border: '1px solid rgba(0,0,0,0.06)'
+                }}>
+                  <Sparkles size={12} />
+                  {completionPercentage}% • {statusBadge.text}
                 </span>
               </div>
               

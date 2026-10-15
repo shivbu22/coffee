@@ -62,6 +62,18 @@ export const StorageEngine = {
   // --- Membership ---
   getMembership: () => safeGet(STORAGE_KEYS.MEMBERSHIP, { hasActiveSub: false, tier: null }),
   setMembership: (sub) => safeSet(STORAGE_KEYS.MEMBERSHIP, sub),
+  getActiveSubscription: () => {
+    const mem = safeGet(STORAGE_KEYS.MEMBERSHIP, { hasActiveSub: false, tier: null });
+    if (!mem || !mem.hasActiveSub) return { isActive: false, tier: null, isLifetime: false };
+    const isLifetime = mem.tier === 'star_member' || mem.tier === 'star' || mem.expiryDate === 'Lifetime VIP Access';
+    if (isLifetime) {
+      return { isActive: true, tier: mem.tier, isLifetime: true, planName: mem.planName, expiryDate: 'Lifetime VIP Access' };
+    }
+    if (mem.expiresAt && Date.now() > mem.expiresAt) {
+      return { isActive: false, tier: null, isLifetime: false, expired: true };
+    }
+    return { isActive: true, tier: mem.tier, isLifetime: false, planName: mem.planName, expiryDate: mem.expiryDate };
+  },
 
   // --- Companions ---
   getCompanions: () => safeGet(STORAGE_KEYS.COMPANIONS, INITIAL_COMPANIONS),

@@ -17,8 +17,7 @@ import {
   Layers,
   ChevronRight,
   X,
-  Bot,
-  Award
+  Bot
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -110,13 +109,6 @@ export default function BuddyAppShell({
           badge: null
         },
         {
-          id: 'hallmark',
-          label: 'Hallmark Trust',
-          icon: Award,
-          badge: 'AUDITED',
-          onClick: () => onOpenHallmark ? onOpenHallmark(buddyProfile) : null
-        },
-        {
           id: 'subscriptions',
           label: 'Membership',
           icon: Star,
@@ -124,7 +116,7 @@ export default function BuddyAppShell({
           onClick: onOpenSubscribe
         },
         {
-          id: 'vault',
+          id: 'help',
           label: 'Help',
           icon: HelpCircle,
           badge: null

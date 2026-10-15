@@ -18,6 +18,16 @@ export default function HallmarkTrustModal({ isOpen, onClose, hallmarkData, onSh
   const [isVerifying, setIsVerifying] = useState(false);
   const [hasReverified, setHasReverified] = useState(false);
 
+  // Accessibility: Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !hallmarkData) return null;
 
   const handleCopyHash = () => {
@@ -52,6 +62,9 @@ export default function HallmarkTrustModal({ isOpen, onClose, hallmarkData, onSh
       onClick={onClose}
     >
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hallmark-modal-title"
         style={{
           background: 'var(--bg-card, #ffffff)',
           color: 'var(--text-main, #0f172a)',
@@ -123,7 +136,7 @@ export default function HallmarkTrustModal({ isOpen, onClose, hallmarkData, onSh
                   ID: {hallmarkData.hallmarkId}
                 </span>
               </div>
-              <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: '#ffffff', letterSpacing: '-0.02em' }}>
+              <h2 id="hallmark-modal-title" style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: '#ffffff', letterSpacing: '-0.02em' }}>
                 {hallmarkData.companionName}’s Hallmark Dossier
               </h2>
               <div style={{ fontSize: '0.8rem', color: '#d1fae5', marginTop: 2 }}>

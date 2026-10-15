@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, MapPin, X, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
+import { X, ArrowRight } from 'lucide-react';
 import { FindCoLogoMark } from '../BrandLogo';
 
 export default function CozyFloatingBeacon({ onOpenFeed, onOpenSubscribe }) {

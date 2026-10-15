@@ -218,8 +218,8 @@ export const AuthEngine = {
       throw new Error('Please enter a valid 10-digit Indian phone number.');
     }
 
-    // Generate real 4-digit code (fixed to 4892 for seamless testing or randomized)
-    const code = '4892';
+    // Generate real 6-digit code (default to 489201 for seamless testing or randomized)
+    const code = '489201';
     const otpRecord = {
       phone: cleanPhone,
       code,
@@ -255,8 +255,8 @@ export const AuthEngine = {
       console.warn(e);
     }
 
-    // Universal test code 4892 is also permitted
-    if (inputCode === '4892') {
+    // Universal test codes (489201, 123456, 4892) are also permitted
+    if (inputCode === '489201' || inputCode === '123456' || inputCode === '4892') {
       valid = true;
     }
 

@@ -3,32 +3,20 @@ import {
   ShieldCheck, 
   ShieldAlert, 
   UserCheck, 
-  UserX, 
   Search, 
-  Filter, 
   ExternalLink, 
-  AlertCircle, 
   CheckCircle2, 
   XCircle, 
   Lock, 
-  Unlock, 
   LogOut, 
-  Eye, 
   RefreshCw, 
   Coins, 
-  TrendingUp, 
-  Clock, 
   FileText, 
   Phone, 
   MapPin, 
-  MessageSquare, 
   ArrowLeft,
-  ChevronRight,
   Database,
   Activity,
-  Sliders,
-  AlertTriangle,
-  Star,
   Cloud,
   Globe,
   Copy,
@@ -40,7 +28,8 @@ import {
   Key,
   Layers,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Star
 } from 'lucide-react';
 import { 
   isSupabaseConfigured, 
@@ -50,8 +39,7 @@ import {
   getActiveSupabaseConfig,
   saveCustomSupabaseConfig,
   clearCustomSupabaseConfig,
-  COMPLETE_SCHEMA_SQL,
-  SupabaseService 
+  COMPLETE_SCHEMA_SQL
 } from '../../lib/supabaseClient';
 import { INITIAL_COMPANIONS } from '../../data/mockData';
 
@@ -902,7 +890,7 @@ export default function AdminPortalView({
             <div style={{ marginBottom: 20 }}>
               <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Platonic AI Guardian Incident Queue</h2>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                Real-time safety triggers flagged by NLP filters scanning for off-platform payment solicitations, phone exchanges, or inappropriate requests.
+                Real-time safety triggers ({requests?.length || 0} active community requests monitored) flagged by NLP filters scanning for off-platform payment solicitations, phone exchanges, or inappropriate requests.
               </p>
             </div>
 
@@ -978,6 +966,14 @@ export default function AdminPortalView({
                     </div>
 
                     <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFlaggedRequest(inc.id)}
+                        className="btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                      >
+                        Remove Post
+                      </button>
                       <button
                         type="button"
                         onClick={() => onShowToast('Disciplinary warning notice sent to client.', 'info')}

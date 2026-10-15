@@ -1,0 +1,23 @@
+{
+  "name": "FindCo — Social Companionship Platform",
+  "short_name": "FindCo",
+  "description": "India's trusted companionship network. Friendship-first, Aadhaar-verified, escrow-protected.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf9f6",
+  "theme_color": "#fa6e5e",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/findco-brand-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

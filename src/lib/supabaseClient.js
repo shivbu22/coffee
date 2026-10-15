@@ -454,7 +454,7 @@ export const SupabaseService = {
     }
     const { data, error } = await query;
     if (error) throw error;
-    return data;
+    return (data || []).map(formatSupabaseCompanion);
   },
 
   // --- ACTIVITY REQUESTS ---
@@ -465,18 +465,33 @@ export const SupabaseService = {
       .select('*')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    return (data || []).map(formatSupabaseRequest);
   },
 
   async createRequest(requestData) {
     if (!isSupabaseConfigured || !supabase) return null;
+    const dbPayload = {
+      client_id: requestData.clientId || requestData.client_id || 'guest',
+      client_name: requestData.clientName || requestData.client_name || 'Member',
+      client_avatar: requestData.clientAvatar || requestData.client_avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces',
+      activity: requestData.activity,
+      city: requestData.city || 'Bengaluru',
+      area: requestData.area || 'City Center',
+      date_time: requestData.dateTime || requestData.date_time || 'Today, 7:00 PM',
+      budget: Number(requestData.budget) || 1000,
+      duration: Number(requestData.duration) || 2,
+      gender_pref: requestData.genderPref || requestData.gender_pref || 'Any Gender',
+      description: requestData.description || '',
+      status: 'OPEN',
+      responses_count: 0
+    };
     const { data, error } = await supabase
       .from('activity_requests')
-      .insert([requestData])
+      .insert([dbPayload])
       .select()
       .single();
     if (error) throw error;
-    return data;
+    return formatSupabaseRequest(data);
   },
 
   // --- BOOKINGS & ESCROW ---
@@ -605,6 +620,58 @@ export function formatSupabaseUserProfile(user, fallbackRole = 'client') {
       ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces'
       : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces'),
     isAadhaarVerified: true
+  };
+}
+
+/**
+ * Format raw Supabase Companion database row into FindCo's component-ready schema
+ */
+export function formatSupabaseCompanion(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    id: row.id,
+    name: row.name,
+    avatar: row.avatar,
+    city: row.city,
+    area: row.area,
+    hourlyRate: row.hourly_rate ?? row.hourlyRate ?? 500,
+    tripRate: row.trip_rate ?? row.tripRate ?? 2000,
+    rating: Number(row.rating) || 4.9,
+    reviewsCount: row.reviews_count ?? row.reviewsCount ?? 20,
+    isStar: row.is_star !== undefined ? Boolean(row.is_star) : Boolean(row.isStar),
+    isOnline: row.is_online !== undefined ? Boolean(row.is_online) : (row.isOnline !== undefined ? Boolean(row.isOnline) : true),
+    isAadhaarVerified: row.kyc_status === 'VERIFIED' || Boolean(row.is_aadhaar_verified) || Boolean(row.isAadhaarVerified) || true,
+    bio: row.bio || '',
+    services: Array.isArray(row.services) ? row.services : ['Cafe & Dining Buddy'],
+    languages: Array.isArray(row.languages) ? row.languages : ['English', 'Hindi'],
+    completedHangouts: row.completed_hangouts ?? row.completedHangouts ?? 12,
+    hallmarkId: row.hallmark_id || row.hallmarkId || `HLM-${(row.city || 'BLR').slice(0, 3).toUpperCase()}-9901`
+  };
+}
+
+/**
+ * Format raw Supabase Activity Request database row into FindCo's component-ready schema
+ */
+export function formatSupabaseRequest(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    id: row.id,
+    clientId: row.client_id || row.clientId || 'guest',
+    clientName: row.client_name || row.clientName || 'Member',
+    clientAvatar: row.client_avatar || row.clientAvatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces',
+    activity: row.activity,
+    city: row.city,
+    area: row.area,
+    dateTime: row.date_time || row.dateTime,
+    budget: Number(row.budget) || 1000,
+    duration: Number(row.duration) || 2,
+    genderPref: row.gender_pref || row.genderPref || 'Any Gender',
+    description: row.description || '',
+    status: row.status || 'OPEN',
+    responsesCount: row.responses_count ?? row.responsesCount ?? 0,
+    createdAt: row.created_at || row.createdAt
   };
 }
 

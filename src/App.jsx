@@ -1,36 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
-import BuddyFeedView from './components/BuddyFeedView';
-import DiscoverView from './components/DiscoverView';
-import ChatsView from './components/ChatsView';
-import IdentityVaultView from './components/IdentityVaultView';
-import BuddyProfileView from './components/BuddyProfileView';
-import DashboardView from './components/DashboardView';
-import NotificationsView from './components/NotificationsView';
-import SubscriptionModal from './components/SubscriptionModal';
-import PostRequestModal from './components/PostRequestModal';
 import Footer from './components/Footer';
-import AdminSecurityGate from './components/admin/AdminSecurityGate';
-import AdminPortalView from './components/admin/AdminPortalView';
 import CozyFloatingBeacon from './components/watermelon/CozyFloatingBeacon';
 import BuddyAppShell from './components/BuddyAppShell';
-import AuthModal from './components/AuthModal';
-import HallmarkTrustModal from './components/HallmarkTrustModal';
-import AntigravityAgentModal from './components/AntigravityAgentModal';
+
+// Code-split heavy views to reduce initial bundle footprint
+const BuddyFeedView = lazy(() => import('./components/BuddyFeedView'));
+const DiscoverView = lazy(() => import('./components/DiscoverView'));
+const ChatsView = lazy(() => import('./components/ChatsView'));
+const IdentityVaultView = lazy(() => import('./components/IdentityVaultView'));
+const BuddyProfileView = lazy(() => import('./components/BuddyProfileView'));
+const DashboardView = lazy(() => import('./components/DashboardView'));
+const NotificationsView = lazy(() => import('./components/NotificationsView'));
+const HelpView = lazy(() => import('./components/HelpView'));
+const AdminSecurityGate = lazy(() => import('./components/admin/AdminSecurityGate'));
+const AdminPortalView = lazy(() => import('./components/admin/AdminPortalView'));
+
+// Code-split global modals so initial landing payload is ultra-light
+const AuthModal = lazy(() => import('./components/AuthModal'));
+const SubscriptionModal = lazy(() => import('./components/SubscriptionModal'));
+const PostRequestModal = lazy(() => import('./components/PostRequestModal'));
+const HallmarkTrustModal = lazy(() => import('./components/HallmarkTrustModal'));
+const AntigravityAgentModal = lazy(() => import('./components/AntigravityAgentModal'));
+
+function ViewLoader({ message = 'Loading...' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: 14 }}>
+      <div style={{
+        width: 38,
+        height: 38,
+        border: '3px solid var(--border-subtle)',
+        borderTopColor: 'var(--color-primary)',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite'
+      }} />
+      <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', fontWeight: 500 }}>{message}</span>
+    </div>
+  );
+}
+
 import { StorageEngine } from './utils/storageEngine';
 import { getCompanionHallmark } from './utils/hallmarkProvenance';
+import { SUBSCRIPTION_PLANS } from './data/mockData';
 import { 
-  INITIAL_COMPANIONS, 
-  INITIAL_REQUESTS, 
-  INITIAL_CHATS, 
-  INITIAL_KYC_REQUESTS, 
-  INITIAL_DASHBOARD_DATA, 
-  INITIAL_NOTIFICATIONS, 
-  SUBSCRIPTION_PLANS, 
-  DEFAULT_BUDDY_PROFILE 
-} from './data/mockData';
-import { SupabaseAuthService, formatSupabaseUserProfile } from './lib/supabaseClient';
+  supabase,
+  SupabaseAuthService, 
+  SupabaseService, 
+  isSupabaseConfigured, 
+  formatSupabaseUserProfile 
+} from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export default function App() {
@@ -119,16 +138,20 @@ export default function App() {
   };
 
   const handleUnlockSubscription = (tier = 'premium') => {
-    const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.tier === tier) || SUBSCRIPTION_PLANS[2];
-    const expiryDate = tier === 'star_member' 
+    const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.tier === tier || (tier === 'star' && p.tier === 'star_member')) || SUBSCRIPTION_PLANS[2];
+    const isLifetime = tier === 'star_member' || tier === 'star';
+    const durationDays = tier === 'basic' ? 90 : tier === 'standard' ? 180 : 365;
+    const expiresAt = isLifetime ? null : Date.now() + durationDays * 86400000;
+    const expiryDate = isLifetime 
       ? 'Lifetime VIP Access' 
-      : new Date(Date.now() + (tier === 'basic' ? 90 : tier === 'standard' ? 180 : 365) * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      : new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     
     const newMembership = {
       hasActiveSub: true,
-      tier: tier,
+      tier: selectedPlan.tier,
       planName: selectedPlan.name,
       validity: selectedPlan.validity,
+      expiresAt,
       expiryDate
     };
     setMembership(newMembership);
@@ -167,15 +190,93 @@ export default function App() {
     setActiveTab('chats');
   };
 
-  const handleAddNewRequest = (newRequest) => {
+  const handleAddNewRequest = async (newRequest) => {
     setRequests(prev => [newRequest, ...prev]);
     setActiveTab('feed');
+    if (isSupabaseConfigured) {
+      try {
+        const cloudReq = await SupabaseService.createRequest(newRequest);
+        if (cloudReq) {
+          setRequests(prev => [cloudReq, ...prev.filter(r => r.id !== newRequest.id)]);
+        }
+      } catch (err) {
+        console.warn('[Supabase Create Request]', err);
+      }
+    }
   };
 
-  const handleOpenAuth = (roleIntent = 'client') => {
+  // Create booking in Supabase + local state
+  const handleAddBooking = async (newBooking) => {
+    // Update local dashboard immediately
+    setDashboardData(prev => ({
+      ...prev,
+      upcomingBookings: [newBooking, ...(prev.upcomingBookings || [])]
+    }));
+    StorageEngine.addBooking(newBooking);
+
+    // Persist to Supabase bookings table
+    if (isSupabaseConfigured) {
+      try {
+        const dbBooking = {
+          client_id: newBooking.clientId || currentUser?.id || 'guest',
+          client_name: newBooking.clientName || currentUser?.name || 'Member',
+          buddy_id: newBooking.buddyId || newBooking.partnerName || '',
+          buddy_name: newBooking.partnerName || newBooking.buddyName || 'Companion',
+          activity: newBooking.activityTitle || newBooking.activity || 'Hangout',
+          date: newBooking.date || new Date().toLocaleDateString('en-IN'),
+          time: newBooking.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          hours: Number(newBooking.hours) || 2,
+          hourly_rate: Number(newBooking.hourlyRate || newBooking.escrowAmount / (newBooking.hours || 2)) || 500,
+          total_amount: Number(newBooking.escrowAmount || newBooking.totalAmount) || 1000,
+          escrow_status: 'LOCKED',
+          handshake_pin: newBooking.handshakePin || String(Math.floor(1000 + Math.random() * 9000))
+        };
+        await SupabaseService.createBooking(dbBooking);
+        console.log('[Supabase] Booking synced to cloud');
+      } catch (err) {
+        console.warn('[Supabase Create Booking]', err);
+      }
+    }
+  };
+
+  const [pendingTab, setPendingTab] = useState(null);
+
+  const handleOpenAuth = (roleIntent = 'client', targetTab = null) => {
     setAuthDefaultRole(roleIntent);
+    if (targetTab) {
+      setPendingTab(targetTab);
+      const tabLabel = targetTab === 'subscriptions' 
+        ? 'Plans' 
+        : targetTab === 'chats' 
+        ? 'Chats' 
+        : targetTab === 'feed' 
+        ? 'Feed' 
+        : targetTab === 'discover' 
+        ? 'Discover' 
+        : targetTab === 'profile'
+        ? 'Studio'
+        : targetTab === 'dashboard'
+        ? 'Member Dashboard'
+        : targetTab.charAt(0).toUpperCase() + targetTab.slice(1);
+      showToast(`Please sign in or create an account to access ${tabLabel}.`, 'info');
+    }
     setIsAuthModalOpen(true);
   };
+
+  const navigateWithAuth = (tab, roleIntent = 'client') => {
+    if (!isLoggedIn && tab !== 'landing') {
+      handleOpenAuth(tab === 'profile' ? 'buddy' : roleIntent, tab);
+      return;
+    }
+    setActiveTab(tab);
+  };
+
+  // Enforce access control: non-authenticated users are restricted to landing
+  useEffect(() => {
+    if (!isLoggedIn && activeTab !== 'landing') {
+      setActiveTab('landing');
+    }
+  }, [isLoggedIn, activeTab]);
 
   const handleLoginSuccess = (userProfile) => {
     setIsLoggedIn(true);
@@ -189,16 +290,114 @@ export default function App() {
       city: userProfile.city || 'Bengaluru',
       isAadhaarVerified: true
     }));
-    // Once signed in, land directly in the member dashboard & connections
-    setActiveTab('dashboard');
+    // Once signed in, land directly in the requested tab or default to feed / profile
+    const targetTab = pendingTab || (userProfile.role === 'buddy' ? 'profile' : 'feed');
+    setPendingTab(null);
+    setActiveTab(targetTab);
+    showToast(`Welcome back, ${userProfile.name.split(' ')[0]}!`, 'success');
   };
 
-  // Supabase Cloud Auth Session Synchronizer
+  // Supabase Cloud Auth & Live Data Synchronizer
   useEffect(() => {
-    // 1. Check existing active cloud session on mount
-    SupabaseAuthService.getSession().then(session => {
+    let realtimeChannel = null;
+
+    // 1. Sync live companions from Supabase if configured
+    if (isSupabaseConfigured) {
+      SupabaseService.getCompanions().then(cloudCompanions => {
+        if (cloudCompanions && cloudCompanions.length > 0) {
+          setCompanions(cloudCompanions);
+          StorageEngine.setCompanions(cloudCompanions);
+        }
+      }).catch(e => console.warn('[Supabase Companions Sync]', e));
+
+      SupabaseService.getRequests().then(cloudRequests => {
+        if (cloudRequests && cloudRequests.length > 0) {
+          setRequests(cloudRequests);
+          StorageEngine.setRequests(cloudRequests);
+        }
+      }).catch(e => console.warn('[Supabase Requests Sync]', e));
+
+      // Sync bookings for the current user
+      SupabaseService.getBookings().then(cloudBookings => {
+        if (cloudBookings && cloudBookings.length > 0) {
+          setDashboardData(prev => ({
+            ...prev,
+            upcomingBookings: cloudBookings.map(b => ({
+              id: b.id,
+              partnerName: b.buddy_name,
+              activityTitle: b.activity,
+              date: b.date,
+              time: b.time,
+              hours: b.hours,
+              escrowAmount: b.total_amount,
+              handshakePin: b.handshake_pin,
+              escrowStatus: b.escrow_status,
+              pinVerified: b.pin_verified
+            }))
+          }));
+        }
+      }).catch(e => console.warn('[Supabase Bookings Sync]', e));
+
+      // 1b. Subscribe to REALTIME inserts on activity_requests
+      if (supabase) {
+        realtimeChannel = supabase
+          .channel('findco-activity-feed')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'activity_requests' },
+            (payload) => {
+              const newReq = payload.new;
+              if (newReq) {
+                const formatted = {
+                  id: newReq.id,
+                  clientId: newReq.client_id,
+                  clientName: newReq.client_name,
+                  clientAvatar: newReq.client_avatar,
+                  activity: newReq.activity,
+                  city: newReq.city,
+                  area: newReq.area,
+                  dateTime: newReq.date_time,
+                  budget: newReq.budget,
+                  duration: newReq.duration,
+                  genderPref: newReq.gender_pref,
+                  description: newReq.description,
+                  status: newReq.status,
+                  responsesCount: newReq.responses_count || 0,
+                  createdAt: newReq.created_at
+                };
+                setRequests(prev => {
+                  if (prev.some(r => r.id === formatted.id)) return prev;
+                  return [formatted, ...prev];
+                });
+              }
+            }
+          )
+          .subscribe();
+      }
+    }
+
+    // 2. Check existing active cloud session on mount
+    SupabaseAuthService.getSession().then(async (session) => {
       if (session?.user && !isLoggedIn) {
         const profile = formatSupabaseUserProfile(session.user);
+        
+        // Fetch full profile from profiles table if available
+        if (isSupabaseConfigured) {
+          try {
+            const dbProfile = await SupabaseService.getProfile(session.user.id);
+            if (dbProfile) {
+              profile.name = dbProfile.full_name || profile.name;
+              profile.avatar = dbProfile.avatar_url || profile.avatar;
+              profile.city = dbProfile.city || profile.city;
+              profile.role = dbProfile.role || profile.role;
+              profile.phone = dbProfile.phone || profile.phone;
+              profile.isAadhaarVerified = dbProfile.is_aadhaar_verified ?? true;
+            }
+          } catch (e) {
+            console.warn('[Supabase Profile Fetch]', e);
+          }
+        }
+
         setIsLoggedIn(true);
         setCurrentUser(profile);
         setRole(profile.role);
@@ -206,10 +405,26 @@ export default function App() {
       }
     }).catch(e => console.warn('[Supabase Session Check]', e));
 
-    // 2. Subscribe to live auth events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
-    const unsubscribe = SupabaseAuthService.onAuthStateChange((event, session) => {
+    // 3. Subscribe to live auth events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
+    const unsubscribe = SupabaseAuthService.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const profile = formatSupabaseUserProfile(session.user);
+
+        // Enrich with Supabase profiles table data
+        if (isSupabaseConfigured) {
+          try {
+            const dbProfile = await SupabaseService.getProfile(session.user.id);
+            if (dbProfile) {
+              profile.name = dbProfile.full_name || profile.name;
+              profile.avatar = dbProfile.avatar_url || profile.avatar;
+              profile.city = dbProfile.city || profile.city;
+              profile.role = dbProfile.role || profile.role;
+            }
+          } catch (e) {
+            console.warn('[Supabase Profile Enrich]', e);
+          }
+        }
+
         setIsLoggedIn(true);
         setCurrentUser(profile);
         setRole(profile.role);
@@ -223,6 +438,9 @@ export default function App() {
 
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
+      if (realtimeChannel && supabase) {
+        supabase.removeChannel(realtimeChannel);
+      }
     };
   }, []);
 
@@ -258,7 +476,7 @@ export default function App() {
     }
   };
 
-  const totalUnread = chats.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  const totalUnread = isLoggedIn ? chats.reduce((acc, c) => acc + (c.unreadCount || 0), 0) : 0;
 
   // ==========================================
   // ISOLATED PROTECTED ADMIN PORTAL
@@ -266,74 +484,79 @@ export default function App() {
   if (siteMode === 'admin') {
     return (
       <div style={{ minHeight: '100vh', background: '#0a0d14', color: '#f8fafc' }}>
-        {!adminAuth ? (
-          <AdminSecurityGate 
-            onAuthenticate={(authSession) => {
-              setAdminAuth(authSession);
-              showToast(`Operator Authenticated: ${authSession.operatorName} (${authSession.role})`, 'success');
-            }}
-            onExitToConsumer={() => setSiteMode('consumer')}
-            onShowToast={showToast}
-          />
-        ) : (
-          <AdminPortalView 
-            adminAuth={adminAuth}
-            kycRequests={kycRequests}
-            setKycRequests={setKycRequests}
-            companions={companions}
-            setCompanions={setCompanions}
-            requests={requests}
-            setRequests={setRequests}
-            onExitToConsumer={() => setSiteMode('consumer')}
-            onLogout={() => {
-              setAdminAuth(null);
-              showToast('Admin security session locked.', 'info');
-            }}
-            onShowToast={showToast}
-          />
-        )}
-
-        {/* Global Toast Notification */}
-        {toast && (
-          <div style={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 9999,
-            background: 'var(--bg-card, #131722)',
-            border: `1px solid ${toast.type === 'success' ? '#10b981' : toast.type === 'error' ? 'var(--color-rose, #ef4444)' : 'var(--color-primary, #6366f1)'}`,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-            borderRadius: 'var(--radius-md, 8px)',
-            padding: '12px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            maxWidth: 420,
-            animation: 'fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}>
-            {toast.type === 'success' && <CheckCircle2 size={18} color="#10b981" />}
-            {toast.type === 'error' && <AlertCircle size={18} color="#ef4444" />}
-            {toast.type === 'info' && <Info size={18} color="#6366f1" />}
-            
-            <div style={{ fontSize: '0.86rem', color: '#f8fafc', flex: 1, fontWeight: 500 }}>
-              {toast.message}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setToast(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                padding: 2
+        <Suspense fallback={<ViewLoader message="Securing operator environment..." />}>
+          {!adminAuth ? (
+            <AdminSecurityGate 
+              onAuthenticate={(authSession) => {
+                setAdminAuth(authSession);
+                showToast(`Operator Authenticated: ${authSession.operatorName} (${authSession.role})`, 'success');
               }}
-            >
-              <X size={15} />
-            </button>
-          </div>
-        )}
+              onExitToConsumer={() => setSiteMode('consumer')}
+              onShowToast={showToast}
+            />
+          ) : (
+            <AdminPortalView 
+              adminAuth={adminAuth}
+              kycRequests={kycRequests}
+              setKycRequests={setKycRequests}
+              companions={companions}
+              setCompanions={setCompanions}
+              requests={requests}
+              setRequests={setRequests}
+              onExitToConsumer={() => setSiteMode('consumer')}
+              onLogout={() => {
+                setAdminAuth(null);
+                showToast('Admin security session locked.', 'info');
+              }}
+              onShowToast={showToast}
+            />
+          )}
+        </Suspense>
+
+        {/* Global Toast Live Region */}
+        <div role="status" aria-live="polite" aria-atomic="true">
+          {toast && (
+            <div style={{
+              position: 'fixed',
+              bottom: 24,
+              right: 24,
+              zIndex: 9999,
+              background: 'var(--bg-card, #131722)',
+              border: `1px solid ${toast.type === 'success' ? '#10b981' : toast.type === 'error' ? 'var(--color-rose, #ef4444)' : 'var(--color-primary, #6366f1)'}`,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              borderRadius: 'var(--radius-md, 8px)',
+              padding: '12px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              maxWidth: 420,
+              animation: 'fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}>
+              {toast.type === 'success' && <CheckCircle2 size={18} color="#10b981" />}
+              {toast.type === 'error' && <AlertCircle size={18} color="#ef4444" />}
+              {toast.type === 'info' && <Info size={18} color="#6366f1" />}
+              
+              <div style={{ fontSize: '0.86rem', color: '#f8fafc', flex: 1, fontWeight: 500 }}>
+                {toast.message}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setToast(null)}
+                aria-label="Dismiss notification"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 2
+                }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -343,6 +566,7 @@ export default function App() {
   // ==========================================
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       
       {/* Consumer Shell Selection: Landing View vs In-App BuddySearch Shell */}
       {activeTab === 'landing' ? (
@@ -350,11 +574,17 @@ export default function App() {
           {/* Top Navigation for Landing */}
           <Navbar 
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
+            setActiveTab={navigateWithAuth}
             role={role}
             setRole={setRole}
             hasActiveSub={hasActiveSub}
-            onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+            onOpenSubscribe={() => {
+              if (!isLoggedIn) {
+                handleOpenAuth('client', 'subscriptions');
+                return;
+              }
+              setIsSubscribeModalOpen(true);
+            }}
             unreadCount={totalUnread}
             onOpenPostRequest={handlePostRequestClick}
             theme={theme}
@@ -369,18 +599,17 @@ export default function App() {
           />
 
           {/* Main Landing Page Content */}
-          <main style={{ flex: 1 }}>
+          <main id="main-content" style={{ flex: 1 }}>
             <LandingPage 
-              setActiveTab={(tab) => {
-                if (['dashboard', 'chats', 'profile', 'vault'].includes(tab) && !isLoggedIn) {
-                  showToast('Please sign in or create an account to access ' + (tab === 'dashboard' ? 'your dashboard' : tab) + '.', 'info');
-                  handleOpenAuth(tab === 'profile' ? 'buddy' : 'client');
-                } else {
-                  setActiveTab(tab);
-                }
-              }}
+              setActiveTab={navigateWithAuth}
               setCityFilter={setCityFilter}
-              onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+              onOpenSubscribe={() => {
+                if (!isLoggedIn) {
+                  handleOpenAuth('client', 'subscriptions');
+                  return;
+                }
+                setIsSubscribeModalOpen(true);
+              }}
               onOpenPostRequest={handlePostRequestClick}
               onOpenAuth={handleOpenAuth}
               isLoggedIn={isLoggedIn}
@@ -391,10 +620,16 @@ export default function App() {
 
           {/* Footer for Landing */}
           <Footer 
-            setActiveTab={setActiveTab}
+            setActiveTab={navigateWithAuth}
             setCityFilter={setCityFilter}
             onOpenAdminPortal={() => setSiteMode('admin')}
-            onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+            onOpenSubscribe={() => {
+              if (!isLoggedIn) {
+                handleOpenAuth('client', 'subscriptions');
+                return;
+              }
+              setIsSubscribeModalOpen(true);
+            }}
             onOpenPostRequest={handlePostRequestClick}
             onOpenAuth={handleOpenAuth}
           />
@@ -403,13 +638,7 @@ export default function App() {
         /* In-App BuddySearch Workspace with Left Sidebar Navigation */
         <BuddyAppShell
           activeTab={activeTab}
-          setActiveTab={(tab) => {
-            if (['dashboard', 'chats', 'profile', 'vault', 'notifications'].includes(tab) && !isLoggedIn) {
-              handleOpenAuth(tab === 'profile' ? 'buddy' : 'client');
-            } else {
-              setActiveTab(tab);
-            }
-          }}
+          setActiveTab={navigateWithAuth}
           role={role}
           setRole={setRole}
           hasActiveSub={hasActiveSub}
@@ -430,8 +659,10 @@ export default function App() {
           onOpenAntigravityAgent={handleOpenAntigravityAgent}
           onOpenHallmark={handleOpenHallmark}
         >
-          {activeTab === 'feed' && (
-            <BuddyFeedView 
+          <main id="main-content" style={{ flex: 1, minWidth: 0, width: '100%' }}>
+            <Suspense fallback={<ViewLoader message="Opening view..." />}>
+              {activeTab === 'feed' && (
+                <BuddyFeedView 
               requests={requests}
               setRequests={setRequests}
               hasActiveSub={hasActiveSub}
@@ -472,13 +703,7 @@ export default function App() {
               role={role}
               onShowToast={showToast}
               onOpenHallmark={handleOpenHallmark}
-              onAddBooking={(newBooking) => {
-                setDashboardData(prev => ({
-                  ...prev,
-                  upcomingBookings: [newBooking, ...(prev.upcomingBookings || [])]
-                }));
-                StorageEngine.addBooking(newBooking);
-              }}
+              onAddBooking={handleAddBooking}
             />
           )}
 
@@ -521,6 +746,16 @@ export default function App() {
               role={role}
               onShowToast={showToast}
               onOpenHallmark={handleOpenHallmark}
+            />
+          )}
+
+          {activeTab === 'help' && (
+            <HelpView 
+              onNavigateToTab={navigateWithAuth}
+              onOpenAntigravityAgent={handleOpenAntigravityAgent}
+              onShowToast={showToast}
+              currentUser={currentUser}
+              role={role}
             />
           )}
 
@@ -643,104 +878,121 @@ export default function App() {
               </div>
             </div>
           )}
+            </Suspense>
+          </main>
         </BuddyAppShell>
       )}
 
-      {/* Global Modals */}
-      <AuthModal 
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-        onShowToast={showToast}
-        defaultRole={authDefaultRole}
-      />
+      {/* Global Lazy Modals */}
+      <Suspense fallback={null}>
+        {isAuthModalOpen && (
+          <AuthModal 
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+            onLoginSuccess={handleLoginSuccess}
+            onShowToast={showToast}
+            defaultRole={authDefaultRole}
+          />
+        )}
 
-      <SubscriptionModal 
-        isOpen={isSubscribeModalOpen}
-        onClose={() => setIsSubscribeModalOpen(false)}
-        onUnlockSubscription={handleUnlockSubscription}
-        onShowToast={showToast}
-        defaultTier={subscribeModalTier}
-        initialMode={subscribeModalMode}
-      />
+        {isSubscribeModalOpen && (
+          <SubscriptionModal 
+            isOpen={isSubscribeModalOpen}
+            onClose={() => setIsSubscribeModalOpen(false)}
+            onUnlockSubscription={handleUnlockSubscription}
+            onShowToast={showToast}
+            defaultTier={subscribeModalTier}
+            initialMode={subscribeModalMode}
+          />
+        )}
 
-      <PostRequestModal 
-        isOpen={isPostModalOpen}
-        onClose={() => setIsPostModalOpen(false)}
-        onSubmitRequest={handleAddNewRequest}
-        role={role}
-        onShowToast={showToast}
-      />
+        {isPostModalOpen && (
+          <PostRequestModal 
+            isOpen={isPostModalOpen}
+            onClose={() => setIsPostModalOpen(false)}
+            onSubmitRequest={handleAddNewRequest}
+            role={role}
+            onShowToast={showToast}
+          />
+        )}
 
-      {/* FindCo Hallmark Trust & Cryptographic Verification Modal */}
-      <HallmarkTrustModal 
-        isOpen={isHallmarkModalOpen}
-        onClose={() => setIsHallmarkModalOpen(false)}
-        hallmarkData={selectedHallmarkData}
-        onShowToast={showToast}
-      />
+        {/* FindCo Hallmark Trust & Cryptographic Verification Modal */}
+        {isHallmarkModalOpen && (
+          <HallmarkTrustModal 
+            isOpen={isHallmarkModalOpen}
+            onClose={() => setIsHallmarkModalOpen(false)}
+            hallmarkData={selectedHallmarkData}
+            onShowToast={showToast}
+          />
+        )}
 
-      {/* FindCo Antigravity Intelligent AI Concierge Modal */}
-      <AntigravityAgentModal 
-        isOpen={isAntigravityModalOpen}
-        onClose={() => setIsAntigravityModalOpen(false)}
-        onNavigateToTab={(tab) => setActiveTab(tab)}
-        onStartChat={handleStartChatWithCompanion}
-        onOpenHallmark={handleOpenHallmark}
-        onShowToast={showToast}
-      />
+        {/* FindCo Antigravity Intelligent AI Concierge Modal */}
+        {isAntigravityModalOpen && (
+          <AntigravityAgentModal 
+            isOpen={isAntigravityModalOpen}
+            onClose={() => setIsAntigravityModalOpen(false)}
+            onNavigateToTab={(tab) => navigateWithAuth(tab)}
+            onStartChat={handleStartChatWithCompanion}
+            onOpenHallmark={handleOpenHallmark}
+            onShowToast={showToast}
+          />
+        )}
+      </Suspense>
 
       {/* Watermelon-inspired Cozy Companion Floating Beacon */}
       {siteMode === 'consumer' && (
         <CozyFloatingBeacon 
-          onOpenFeed={() => setActiveTab('feed')}
+          onOpenFeed={() => navigateWithAuth('feed')}
           onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
           onOpenAntigravityAgent={handleOpenAntigravityAgent}
           onOpenHallmark={() => handleOpenHallmark({ id: 'comp_1', name: 'Priya Sharma', city: 'Bengaluru' })}
         />
       )}
 
-      {/* Global Toast Notification */}
-      {toast && (
-        <div style={{
-          position: 'fixed',
-          bottom: 96,
-          right: 24,
-          zIndex: 3000,
-          background: 'var(--bg-card)',
-          border: `1px solid ${toast.type === 'success' ? '#10b981' : toast.type === 'error' ? 'var(--color-rose)' : 'var(--color-primary)'}`,
-          boxShadow: 'var(--shadow-lg)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          maxWidth: 420,
-          animation: 'fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
-        }}>
-          {toast.type === 'success' && <CheckCircle2 size={18} color="#059669" />}
-          {toast.type === 'error' && <AlertCircle size={18} color="var(--color-rose)" />}
-          {toast.type === 'info' && <Info size={18} color="var(--color-primary)" />}
-          
-          <div style={{ fontSize: '0.86rem', color: 'var(--text-main)', flex: 1, fontWeight: 500 }}>
-            {toast.message}
-          </div>
+      {/* Global Toast Accessible Live Region */}
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {toast && (
+          <div style={{
+            position: 'fixed',
+            bottom: 96,
+            right: 24,
+            zIndex: 3000,
+            background: 'var(--bg-card)',
+            border: `1px solid ${toast.type === 'success' ? '#10b981' : toast.type === 'error' ? 'var(--color-rose)' : 'var(--color-primary)'}`,
+            boxShadow: 'var(--shadow-lg)',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            maxWidth: 420,
+            animation: 'fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            {toast.type === 'success' && <CheckCircle2 size={18} color="#059669" />}
+            {toast.type === 'error' && <AlertCircle size={18} color="var(--color-rose)" />}
+            {toast.type === 'info' && <Info size={18} color="var(--color-primary)" />}
+            
+            <div style={{ fontSize: '0.86rem', color: 'var(--text-main)', flex: 1, fontWeight: 500 }}>
+              {toast.message}
+            </div>
 
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: 2
-            }}
-          >
-            <X size={15} />
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              aria-label="Dismiss notification"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: 2
+              }}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
+      </div>
 
     </div>
   );

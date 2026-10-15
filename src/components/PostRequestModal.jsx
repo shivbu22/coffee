@@ -26,6 +26,16 @@ export default function PostRequestModal({
   const [postedAs, setPostedAs] = useState(role === 'buddy' ? 'buddy' : 'client');
   const [errors, setErrors] = useState({});
 
+  // Accessibility: Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const validate = () => {
@@ -75,14 +85,20 @@ export default function PostRequestModal({
 
   return (
     <div className="modal-overlay">
-      <div className="modal-box modal-enter" style={{
-        width: '100%',
-        maxWidth: 580,
-        padding: 30,
-        border: '1px solid var(--border-accent)',
-        background: 'var(--bg-card)',
-        color: 'var(--text-main)'
-      }}>
+      <div 
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="post-request-modal-title"
+        className="modal-box modal-enter" 
+        style={{
+          width: '100%',
+          maxWidth: 580,
+          padding: 30,
+          border: '1px solid var(--border-accent)',
+          background: 'var(--bg-card)',
+          color: 'var(--text-main)'
+        }}
+      >
         {/* Close Button */}
         <button
           type="button"
@@ -101,7 +117,7 @@ export default function PostRequestModal({
           <X size={20} />
         </button>
 
-        <h2 style={{ fontSize: '1.45rem', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h2 id="post-request-modal-title" style={{ fontSize: '1.45rem', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
           <PlusCircle size={22} color="var(--color-primary)" />
           Post a Plan or Activity Request
         </h2>

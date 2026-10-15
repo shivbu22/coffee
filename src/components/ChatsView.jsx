@@ -5,29 +5,21 @@ import {
   ShieldCheck, 
   CheckCheck, 
   CheckCircle2, 
-  XCircle, 
   Clock, 
   X,
-  FileText,
   Receipt,
   ArrowLeft,
   Search,
-  SlidersHorizontal,
   Info,
   Calendar,
   Lock,
-  Phone,
   AlertTriangle,
   Copy,
   Check,
-  Sparkles,
+  Award,
   Paperclip,
-  Smile,
-  ChevronRight,
-  UserCheck,
   Star,
-  Coffee,
-  Award
+  Coffee
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
@@ -63,7 +55,6 @@ export default function ChatsView({
   // Offer form state
   const [offerTitle, setOfferTitle] = useState('');
   const [offerAmount, setOfferAmount] = useState('800');
-  const [offerHours, setOfferHours] = useState('2');
   const [offerBillingType, setOfferBillingType] = useState('trip');
   const [offerVenue, setOfferVenue] = useState('Third Wave Coffee, 12th Main Indiranagar');
   const [offerDateTime, setOfferDateTime] = useState('Saturday • 3:00 PM - 5:00 PM');
@@ -77,7 +68,7 @@ export default function ChatsView({
     if (activeRoomId && activeRoomId !== selectedRoomId) {
       setSelectedRoomId(activeRoomId);
     }
-  }, [activeRoomId]);
+  }, [activeRoomId, selectedRoomId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -107,7 +98,7 @@ export default function ChatsView({
       }));
     });
     return () => unsubscribe();
-  }, [selectedRoomId, role]);
+  }, [selectedRoomId, role, setChats]);
 
   // Filter conversations
   const filteredChats = chats.filter(c => {
