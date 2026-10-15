@@ -287,8 +287,14 @@ BEGIN
     END IF;
 END $$;
 
--- Ensure unique index on hallmark_id to support clean idempotent seeding
+-- Performance Indexes for Hot Query Paths
 CREATE UNIQUE INDEX IF NOT EXISTS idx_companions_hallmark_id ON public.companions (hallmark_id);
+CREATE INDEX IF NOT EXISTS idx_companions_city_rating ON public.companions (city, rating DESC);
+CREATE INDEX IF NOT EXISTS idx_companions_is_star ON public.companions (is_star) WHERE is_star = true;
+CREATE INDEX IF NOT EXISTS idx_activity_requests_city_status ON public.activity_requests (city, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON public.chat_messages (room_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_bookings_client_buddy ON public.bookings (client_id, buddy_id, escrow_status);
+CREATE INDEX IF NOT EXISTS idx_profiles_role_city ON public.profiles (role, city);
 
 -- =========================================================================
 -- INITIAL SEED DATA (Indian Metros Companions & Verified Hallmark Trust)
