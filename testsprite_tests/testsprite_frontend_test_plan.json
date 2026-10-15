@@ -1,0 +1,1023 @@
+[
+  {
+    "id": "TC001",
+    "title": "Client can sign in and reach the personalized dashboard",
+    "description": "This verifies that a Client can authenticate from the landing page and arrive at the personalized dashboard.",
+    "category": "Member Authentication & Session Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the personalized dashboard is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Buddy can sign in and reach the personalized dashboard",
+    "description": "This verifies that a Buddy can authenticate from the landing page and arrive at the personalized dashboard.",
+    "category": "Member Authentication & Session Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Buddy intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the personalized dashboard is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "View escrow-locked booking in member dashboard",
+    "description": "An authenticated user can open the member dashboard and review escrow-locked booking details and balance.",
+    "category": "Dual-Handshake Escrow Booking & SafeGuard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the member dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify upcoming bookings and escrow-locked balance are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Authenticated user can complete the SafeGuard handshake to release a booking",
+    "description": "This verifies that a member can review an escrow-locked booking, enter the handshake PIN, and see the booking released.",
+    "category": "Member Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the member dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Open the escrow-locked booking"
+      },
+      {
+        "type": "action",
+        "description": "Enter the handshake PIN"
+      },
+      {
+        "type": "action",
+        "description": "Submit the SafeGuard confirmation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the booking status changes to released"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Release escrow after correct handshake PIN",
+    "description": "An authenticated user can verify a booking by entering the correct 4-digit handshake PIN and see the booking released.",
+    "category": "Dual-Handshake Escrow Booking & SafeGuard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the member dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Enter the companion's valid 4-digit handshake PIN"
+      },
+      {
+        "type": "action",
+        "description": "Verify the PIN"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the booking status changes to released"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Visitor can browse verified companions after signing in",
+    "description": "This verifies that a signed-in user can reach the dashboard and open the companion discovery list.",
+    "category": "Discover Verified Companions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the companion discovery section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify verified companions are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Client can initiate booking from a companion card",
+    "description": "This verifies that a client can begin the booking flow from a companion profile after reviewing the card.",
+    "category": "Discover Verified Companions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the companion discovery section"
+      },
+      {
+        "type": "action",
+        "description": "Open a companion card"
+      },
+      {
+        "type": "action",
+        "description": "Start the booking flow"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the booking flow is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Client can open a companion card and review trust details",
+    "description": "This verifies that a client can open a companion profile and inspect the Hallmark trust information before deciding to continue.",
+    "category": "Discover Verified Companions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the companion discovery section"
+      },
+      {
+        "type": "action",
+        "description": "Open a companion card"
+      },
+      {
+        "type": "action",
+        "description": "Open the Hallmark trust details"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify trust credential details are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Authenticated user can publish a prefilled activity request",
+    "description": "This verifies that an authenticated user can open the request modal from Cozy Activities, submit a hangout request, and see it published in the feed.",
+    "category": "Activity Feed & Requests",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the activity feed"
+      },
+      {
+        "type": "action",
+        "description": "Open the post request experience from Cozy Activities"
+      },
+      {
+        "type": "action",
+        "description": "Submit the activity request"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new request is displayed in the feed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Unlock a membership plan",
+    "description": "A visitor can select a VIP tier and complete the membership unlock flow from the subscription plans experience.",
+    "category": "BuddySearch Membership Plans & VIP Tiers",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the subscription plans experience"
+      },
+      {
+        "type": "action",
+        "description": "Select a VIP tier"
+      },
+      {
+        "type": "action",
+        "description": "Unlock the membership plan"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the membership is unlocked"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user returns to the app"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Open a chat conversation",
+    "description": "An authenticated user can open a chat conversation from the sidebar and view the conversation thread.",
+    "category": "Real-Time Chat & Counter-Offer Negotiation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the chats experience"
+      },
+      {
+        "type": "action",
+        "description": "Select a chat conversation from the sidebar"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected conversation thread is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Client can filter companions by city and activity",
+    "description": "This verifies that a client can narrow the companion list by city and activity and still see matching companions.",
+    "category": "Discover Verified Companions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the companion discovery section"
+      },
+      {
+        "type": "action",
+        "description": "Select a city filter"
+      },
+      {
+        "type": "action",
+        "description": "Select an activity filter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify filtered companions are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Send a text message in chat",
+    "description": "An authenticated user can send a text message in a conversation and see it appear in the thread.",
+    "category": "Real-Time Chat & Counter-Offer Negotiation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the chats experience"
+      },
+      {
+        "type": "action",
+        "description": "Select a chat conversation from the sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Type a message into the chat input"
+      },
+      {
+        "type": "action",
+        "description": "Send the message"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the sent message appears in the conversation"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Apply BUDDY50 promo code",
+    "description": "A visitor can apply the BUDDY50 promo code and see the membership price update with the discount.",
+    "category": "BuddySearch Membership Plans & VIP Tiers",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the subscription plans experience"
+      },
+      {
+        "type": "action",
+        "description": "Enter the BUDDY50 promo code"
+      },
+      {
+        "type": "action",
+        "description": "Apply the promo code"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a discounted price is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a confetti animation is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "Client can start messaging a companion from discovery",
+    "description": "This verifies that a client can initiate a message from a companion profile after reviewing the card.",
+    "category": "Discover Verified Companions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the companion discovery section"
+      },
+      {
+        "type": "action",
+        "description": "Open a companion card"
+      },
+      {
+        "type": "action",
+        "description": "Start a message with the companion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the chat or message composer is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC016",
+    "title": "Inspect Hallmark trust details from a companion card",
+    "description": "A visitor can open a companion's Hallmark trust details and review verification data without exposing sensitive identifiers.",
+    "category": "Hallmark Trust & Cryptographic Verification",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a companion card"
+      },
+      {
+        "type": "action",
+        "description": "Open the Hallmark trust details"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify cryptographic trust details and verification timestamp are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify masked Aadhaar details are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC017",
+    "title": "Send a counter-offer in chat",
+    "description": "An authenticated user can send an hourly counter-offer in a conversation and see it reflected in the thread.",
+    "category": "Real-Time Chat & Counter-Offer Negotiation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the chats experience"
+      },
+      {
+        "type": "action",
+        "description": "Select a chat conversation from the sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Send an hourly counter-offer"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the counter-offer appears in the conversation"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "User can choose a subscription tier and redeem the promo code",
+    "description": "This verifies that a user can compare membership tiers, apply the BUDDY50 promo code, and complete the membership unlock flow with the discounted price shown.",
+    "category": "Subscription Plans",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the subscription plans section"
+      },
+      {
+        "type": "action",
+        "description": "Select a membership tier"
+      },
+      {
+        "type": "action",
+        "description": "Select another membership tier"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the promo code field with BUDDY50"
+      },
+      {
+        "type": "action",
+        "description": "Apply the promo code"
+      },
+      {
+        "type": "action",
+        "description": "Complete the membership unlock flow"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the discounted price is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a success confirmation is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
+    "title": "Compare membership tiers and plans",
+    "description": "A visitor can open subscription plans, compare VIP tiers and plan lengths, and review pricing options.",
+    "category": "BuddySearch Membership Plans & VIP Tiers",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the subscription plans experience"
+      },
+      {
+        "type": "action",
+        "description": "Switch between available VIP tiers"
+      },
+      {
+        "type": "action",
+        "description": "Switch between available plan lengths"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify multiple VIP tiers are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify multiple plan durations are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC020",
+    "title": "Respond to a counter-offer in chat",
+    "description": "An authenticated user can accept or decline a counter-offer within a conversation.",
+    "category": "Real-Time Chat & Counter-Offer Negotiation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the chats experience"
+      },
+      {
+        "type": "action",
+        "description": "Select a chat conversation from the sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Respond to a counter-offer"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the counter-offer response is shown in the conversation"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC021",
+    "title": "Keep a sent message visible in chat",
+    "description": "An authenticated user can send a message and continue viewing it in the same conversation without losing the thread context.",
+    "category": "Real-Time Chat & Counter-Offer Negotiation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the chats experience"
+      },
+      {
+        "type": "action",
+        "description": "Select a chat conversation from the sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Type a message into the chat input"
+      },
+      {
+        "type": "action",
+        "description": "Send the message"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the conversation remains open with the new message visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC022",
+    "title": "Unauthenticated visitor can view the discovery list but cannot open protected member areas",
+    "description": "This verifies that a visitor can browse public companion discovery while protected dashboard areas remain unavailable without signing in.",
+    "category": "Discover Verified Companions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the companion discovery section"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to open the member dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the discovery list is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify protected member content is not displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC023",
+    "title": "Close Hallmark trust details and return to browsing",
+    "description": "A visitor can close the Hallmark trust view and continue browsing companion cards.",
+    "category": "Hallmark Trust & Cryptographic Verification",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a companion card"
+      },
+      {
+        "type": "action",
+        "description": "Open the Hallmark trust details"
+      },
+      {
+        "type": "action",
+        "description": "Close the trust view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the companion browsing view is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC024",
+    "title": "Reject incorrect handshake PIN",
+    "description": "An authenticated user sees PIN verification fail when an incorrect 4-digit handshake PIN is entered in SafeGuard.",
+    "category": "Dual-Handshake Escrow Booking & SafeGuard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the member dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Enter an incorrect 4-digit handshake PIN"
+      },
+      {
+        "type": "action",
+        "description": "Verify the PIN"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a PIN verification failure is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC025",
+    "title": "User can dismiss the post request modal without losing state",
+    "description": "This verifies that closing the activity request modal preserves the user's current progress when they reopen it.",
+    "category": "Activity Feed & Requests",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the sign-in entry point"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Client intent"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Open the activity feed"
+      },
+      {
+        "type": "action",
+        "description": "Open the post request experience from Cozy Activities"
+      },
+      {
+        "type": "action",
+        "description": "Close the request modal"
+      },
+      {
+        "type": "action",
+        "description": "Reopen the request modal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the prefilled request details are still present"
+      }
+    ],
+    "priority": "Low"
+  }
+]
