@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import BrandLogo from './BrandLogo';
 import { 
   Compass, 
-  Search, 
   MapPin, 
   ShieldCheck, 
   Star, 
@@ -13,8 +11,6 @@ import {
   Film, 
   ShoppingBag, 
   Laptop, 
-  CheckCircle2, 
-  Heart, 
   Users, 
   Lock, 
   ChevronRight,
@@ -26,9 +22,7 @@ import {
   Briefcase,
   Car,
   Bot,
-  Fingerprint,
-  Zap,
-  Cpu
+  Fingerprint
 } from 'lucide-react';
 import { CATEGORIES, CITIES, INITIAL_COMPANIONS, PLATFORM_STATS, TESTIMONIALS } from '../data/mockData';
 import CozyCarouselSlider from './watermelon/CozyCarouselSlider';
@@ -152,6 +146,28 @@ export default function LandingPage({
                   <TrendingUp size={17} color="var(--color-primary)" />
                   Become a Buddy — Earn ₹2,000/hr
                 </button>
+                {onOpenAntigravityAgent && (
+                  <button
+                    type="button"
+                    onClick={onOpenAntigravityAgent}
+                    className="btn-secondary"
+                    style={{
+                      padding: '13px 22px',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      background: 'rgba(168, 85, 247, 0.08)',
+                      borderColor: 'rgba(168, 85, 247, 0.35)',
+                      color: '#d8b4fe',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8
+                    }}
+                    title="Launch Antigravity AI Concierge for personalized buddy recommendations"
+                  >
+                    <Bot size={17} color="#c084fc" />
+                    AI Concierge
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -169,26 +185,28 @@ export default function LandingPage({
             <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: 4 }}>
               Active Metros:
             </span>
-            {CITIES.slice(1, 9).map(city => (
-              <button
-                key={city}
-                type="button"
-                onClick={() => {
-                  setSelectedCity(city);
-                  if (setCityFilter) setCityFilter(city);
-                  setActiveTab('discover');
-                }}
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  padding: '5px 13px',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'var(--transition-fast)'
-                }}
+            {CITIES.slice(1, 9).map(city => {
+              const isSelected = selectedCity === city;
+              return (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCity(city);
+                    if (setCityFilter) setCityFilter(city);
+                    setActiveTab('discover');
+                  }}
+                  style={{
+                    background: isSelected ? 'var(--color-primary)' : 'var(--bg-card)',
+                    border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--border-subtle)'}`,
+                    color: isSelected ? '#000' : 'var(--text-secondary)',
+                    padding: '5px 13px',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: '0.78rem',
+                    fontWeight: isSelected ? 700 : 600,
+                    cursor: 'pointer',
+                    transition: 'var(--transition-fast)'
+                  }}
                 onMouseEnter={e => {
                   e.currentTarget.style.borderColor = 'var(--border-accent)';
                   e.currentTarget.style.color = 'var(--color-primary)';
@@ -200,7 +218,8 @@ export default function LandingPage({
               >
                 {city}
               </button>
-            ))}
+            );
+          })}
           </div>
 
           {/* Social Proof Counter Bar */}
@@ -268,7 +287,7 @@ export default function LandingPage({
 
           {/* Watermelon Cozy Activities Expandable Card */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <CozyActivitiesCard onSelectPlan={() => setActiveTab('feed')} />
+            <CozyActivitiesCard onSelectPlan={(act) => onOpenPostRequest ? onOpenPostRequest(act) : setActiveTab('feed')} />
           </div>
         </div>
       </section>

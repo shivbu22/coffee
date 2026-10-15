@@ -1,26 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   PlusCircle, 
-  Coins, 
-  MapPin, 
-  Tag, 
-  AlertCircle, 
-  CheckCircle2
+  AlertCircle 
 } from 'lucide-react';
 import { CATEGORIES, CITIES } from '../data/mockData';
+
+const getInitialActivityValues = (initialActivity) => {
+  if (!initialActivity) {
+    return {
+      category: CATEGORIES[0]?.name || 'Cafe Buddy',
+      title: '',
+      description: '',
+      budget: '500'
+    };
+  }
+  let cat = CATEGORIES[0]?.name || 'Cafe Buddy';
+  let bud = '500';
+  if (initialActivity.badge === 'Fitness' || initialActivity.title?.toLowerCase().includes('strength')) {
+    cat = 'Fitness Buddy';
+    bud = '700';
+  } else if (initialActivity.title?.toLowerCase().includes('coffee') || initialActivity.badge === 'Popular') {
+    cat = 'Cafe Buddy';
+    bud = '500';
+  } else if (initialActivity.title?.toLowerCase().includes('photography') || initialActivity.badge === 'Cultural') {
+    cat = 'Photography Buddy';
+    bud = '800';
+  } else if (initialActivity.title?.toLowerCase().includes('gig') || initialActivity.badge === 'Social') {
+    cat = 'Nightout Buddy';
+    bud = '1000';
+  }
+  const desc = initialActivity.desc
+    ? (initialActivity.desc.length >= 100
+        ? initialActivity.desc
+        : `${initialActivity.desc}. Looking for a verified, polite companion to join me for this session. Safe public meet-up in Bengaluru.`)
+    : '';
+
+  return {
+    category: cat,
+    title: initialActivity.title || '',
+    description: desc,
+    budget: bud
+  };
+};
 
 export default function PostRequestModal({ 
   isOpen, 
   onClose, 
   onSubmitRequest, 
   role, 
-  onShowToast 
+  onShowToast,
+  initialActivity = null
 }) {
-  const [category, setCategory] = useState(CATEGORIES[0].name);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [budget, setBudget] = useState('500');
+  const initialVals = getInitialActivityValues(initialActivity);
+  const [category, setCategory] = useState(initialVals.category);
+  const [title, setTitle] = useState(initialVals.title);
+  const [description, setDescription] = useState(initialVals.description);
+  const [budget, setBudget] = useState(initialVals.budget);
   const [billingType, setBillingType] = useState('hourly');
   const [city, setCity] = useState('Bengaluru');
   const [postedAs, setPostedAs] = useState(role === 'buddy' ? 'buddy' : 'client');

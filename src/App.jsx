@@ -96,6 +96,7 @@ export default function App() {
   const [subscribeModalTier, setSubscribeModalTier] = useState('premium');
   const [subscribeModalMode, setSubscribeModalMode] = useState('buddysearch_hero');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [selectedActivityForPost, setSelectedActivityForPost] = useState(null);
   const [activeRoomId, setActiveRoomId] = useState('room_1');
 
   // Synchronize state changes to StorageEngine
@@ -294,6 +295,9 @@ export default function App() {
     const targetTab = pendingTab || (userProfile.role === 'buddy' ? 'profile' : 'feed');
     setPendingTab(null);
     setActiveTab(targetTab);
+    if (selectedActivityForPost) {
+      setIsPostModalOpen(true);
+    }
     showToast(`Welcome back, ${userProfile.name.split(' ')[0]}!`, 'success');
   };
 
@@ -467,7 +471,12 @@ export default function App() {
     setIsAntigravityModalOpen(true);
   };
 
-  const handlePostRequestClick = () => {
+  const handlePostRequestClick = (activity = null) => {
+    if (activity && typeof activity === 'object' && activity.title) {
+      setSelectedActivityForPost(activity);
+    } else {
+      setSelectedActivityForPost(null);
+    }
     if (!isLoggedIn) {
       showToast('Please sign in or join to post an activity request.', 'info');
       handleOpenAuth('client');
@@ -908,11 +917,16 @@ export default function App() {
 
         {isPostModalOpen && (
           <PostRequestModal 
+            key={selectedActivityForPost?.title || 'new-request'}
             isOpen={isPostModalOpen}
-            onClose={() => setIsPostModalOpen(false)}
+            onClose={() => {
+              setIsPostModalOpen(false);
+              setSelectedActivityForPost(null);
+            }}
             onSubmitRequest={handleAddNewRequest}
             role={role}
             onShowToast={showToast}
+            initialActivity={selectedActivityForPost}
           />
         )}
 
