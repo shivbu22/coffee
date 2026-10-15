@@ -1,16 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  ShieldCheck, 
   Award, 
   CheckCircle2, 
   Lock, 
   Copy, 
-  ExternalLink, 
   X, 
-  QrCode, 
-  FileCheck, 
-  Building2, 
-  UserCheck, 
   RefreshCw 
 } from 'lucide-react';
 
