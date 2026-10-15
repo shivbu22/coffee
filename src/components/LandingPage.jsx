@@ -23,9 +23,182 @@ import {
   Car,
   Fingerprint
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES, CITIES, INITIAL_COMPANIONS, PLATFORM_STATS, TESTIMONIALS } from '../data/mockData';
 import CozyCarouselSlider from './watermelon/CozyCarouselSlider';
 import CozyActivitiesCard from './watermelon/CozyActivitiesCard';
+
+const CATEGORY_THEMES = {
+  nightout: {
+    group: 'night',
+    tag: 'Trending Tonight',
+    accent: '#818cf8',
+    gradient: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.05) 100%)',
+    borderHover: 'rgba(99, 102, 241, 0.55)',
+    iconBg: 'rgba(99, 102, 241, 0.15)',
+    iconColor: '#818cf8',
+    glowColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  movie: {
+    group: 'night',
+    tag: 'Multiplex & Talks',
+    accent: '#fb7185',
+    gradient: 'linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(251, 146, 60, 0.05) 100%)',
+    borderHover: 'rgba(244, 63, 94, 0.55)',
+    iconBg: 'rgba(244, 63, 94, 0.15)',
+    iconColor: '#fb7185',
+    glowColor: 'rgba(244, 63, 94, 0.25)',
+  },
+  shopping: {
+    group: 'lifestyle',
+    tag: 'Style & Flea Markets',
+    accent: '#f472b6',
+    gradient: 'linear-gradient(135deg, rgba(236, 72, 153, 0.12) 0%, rgba(217, 70, 239, 0.05) 100%)',
+    borderHover: 'rgba(236, 72, 153, 0.55)',
+    iconBg: 'rgba(236, 72, 153, 0.15)',
+    iconColor: '#f472b6',
+    glowColor: 'rgba(236, 72, 153, 0.25)',
+  },
+  clubbing: {
+    group: 'night',
+    tag: 'Safe Nightlife Guide',
+    accent: '#a78bfa',
+    gradient: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(6, 182, 212, 0.05) 100%)',
+    borderHover: 'rgba(139, 92, 246, 0.55)',
+    iconBg: 'rgba(139, 92, 246, 0.15)',
+    iconColor: '#a78bfa',
+    glowColor: 'rgba(139, 92, 246, 0.25)',
+  },
+  travel: {
+    group: 'travel',
+    tag: 'Weekend Road Trips',
+    accent: '#34d399',
+    gradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(20, 184, 166, 0.05) 100%)',
+    borderHover: 'rgba(16, 185, 129, 0.55)',
+    iconBg: 'rgba(16, 185, 129, 0.15)',
+    iconColor: '#34d399',
+    glowColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  cafe: {
+    group: 'lifestyle',
+    tag: 'Specialty Coffee & Talks',
+    accent: '#fbbf24',
+    gradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)',
+    borderHover: 'rgba(245, 158, 11, 0.55)',
+    iconBg: 'rgba(245, 158, 11, 0.15)',
+    iconColor: '#fbbf24',
+    glowColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  fitness: {
+    group: 'active',
+    tag: 'Gym & Run Partner',
+    accent: '#a3e635',
+    gradient: 'linear-gradient(135deg, rgba(132, 204, 22, 0.12) 0%, rgba(16, 185, 129, 0.05) 100%)',
+    borderHover: 'rgba(132, 204, 22, 0.55)',
+    iconBg: 'rgba(132, 204, 22, 0.15)',
+    iconColor: '#a3e635',
+    glowColor: 'rgba(132, 204, 22, 0.25)',
+  },
+  gaming: {
+    group: 'active',
+    tag: 'LAN & Console Co-op',
+    accent: '#38bdf8',
+    gradient: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(59, 130, 246, 0.05) 100%)',
+    borderHover: 'rgba(6, 182, 212, 0.55)',
+    iconBg: 'rgba(6, 182, 212, 0.15)',
+    iconColor: '#38bdf8',
+    glowColor: 'rgba(6, 182, 212, 0.25)',
+  },
+  dance: {
+    group: 'active',
+    tag: 'Salsa, Garba & Flow',
+    accent: '#fb923c',
+    gradient: 'linear-gradient(135deg, rgba(249, 115, 22, 0.12) 0%, rgba(239, 68, 68, 0.05) 100%)',
+    borderHover: 'rgba(249, 115, 22, 0.55)',
+    iconBg: 'rgba(249, 115, 22, 0.15)',
+    iconColor: '#fb923c',
+    glowColor: 'rgba(249, 115, 22, 0.25)',
+  },
+  driving: {
+    group: 'travel',
+    tag: 'Highway & Scenic Trips',
+    accent: '#38bdf8',
+    gradient: 'linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(99, 102, 241, 0.05) 100%)',
+    borderHover: 'rgba(2, 132, 199, 0.55)',
+    iconBg: 'rgba(2, 132, 199, 0.15)',
+    iconColor: '#38bdf8',
+    glowColor: 'rgba(2, 132, 199, 0.25)',
+  },
+  photography: {
+    group: 'lifestyle',
+    tag: 'Aesthetic Walks & Reels',
+    accent: '#c084fc',
+    gradient: 'linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(192, 38, 211, 0.05) 100%)',
+    borderHover: 'rgba(124, 58, 237, 0.55)',
+    iconBg: 'rgba(124, 58, 237, 0.15)',
+    iconColor: '#c084fc',
+    glowColor: 'rgba(124, 58, 237, 0.25)',
+  },
+  city: {
+    group: 'travel',
+    tag: 'Heritage & Street Eats',
+    accent: '#f59e0b',
+    gradient: 'linear-gradient(135deg, rgba(217, 119, 6, 0.12) 0%, rgba(5, 150, 105, 0.05) 100%)',
+    borderHover: 'rgba(217, 119, 6, 0.55)',
+    iconBg: 'rgba(217, 119, 6, 0.15)',
+    iconColor: '#f59e0b',
+    glowColor: 'rgba(217, 119, 6, 0.25)',
+  },
+  intern: {
+    group: 'career',
+    tag: 'Errands & Event Support',
+    accent: '#60a5fa',
+    gradient: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(71, 85, 105, 0.05) 100%)',
+    borderHover: 'rgba(37, 99, 235, 0.55)',
+    iconBg: 'rgba(37, 99, 235, 0.15)',
+    iconColor: '#60a5fa',
+    glowColor: 'rgba(37, 99, 235, 0.25)',
+  },
+  interview: {
+    group: 'career',
+    tag: 'Mock Drills & Feedback',
+    accent: '#2dd4bf',
+    gradient: 'linear-gradient(135deg, rgba(13, 148, 136, 0.12) 0%, rgba(37, 99, 235, 0.05) 100%)',
+    borderHover: 'rgba(13, 148, 136, 0.55)',
+    iconBg: 'rgba(13, 148, 136, 0.15)',
+    iconColor: '#2dd4bf',
+    glowColor: 'rgba(13, 148, 136, 0.25)',
+  },
+  study: {
+    group: 'career',
+    tag: 'Deep Work & Co-study',
+    accent: '#818cf8',
+    gradient: 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(14, 165, 233, 0.05) 100%)',
+    borderHover: 'rgba(79, 70, 229, 0.55)',
+    iconBg: 'rgba(79, 70, 229, 0.15)',
+    iconColor: '#818cf8',
+    glowColor: 'rgba(79, 70, 229, 0.25)',
+  },
+  carpool: {
+    group: 'travel',
+    tag: 'Verified Daily Commutes',
+    accent: '#34d399',
+    gradient: 'linear-gradient(135deg, rgba(5, 150, 105, 0.12) 0%, rgba(16, 185, 129, 0.05) 100%)',
+    borderHover: 'rgba(5, 150, 105, 0.55)',
+    iconBg: 'rgba(5, 150, 105, 0.15)',
+    iconColor: '#34d399',
+    glowColor: 'rgba(5, 150, 105, 0.25)',
+  }
+};
+
+const CATEGORY_GROUPS = [
+  { id: 'all', label: 'All 16 Categories', emoji: '✨' },
+  { id: 'night', label: 'Night & Social', emoji: '🌙' },
+  { id: 'lifestyle', label: 'Cafe & Style', emoji: '☕' },
+  { id: 'active', label: 'Fitness & Active', emoji: '⚡' },
+  { id: 'travel', label: 'Travel & Trips', emoji: '🎒' },
+  { id: 'career', label: 'Career & Study', emoji: '💼' },
+];
 
 export default function LandingPage({ 
   setActiveTab, 
@@ -38,6 +211,8 @@ export default function LandingPage({
 }) {
   const [selectedCity, setSelectedCity] = useState('All Cities');
   const [stepperMode, setStepperMode] = useState('client'); // 'client' | 'buddy'
+  const [selectedCategoryGroup, setSelectedCategoryGroup] = useState('all');
+  const [hoveredCatId, setHoveredCatId] = useState(null);
 
   const iconMap = {
     Coffee: Coffee,
@@ -268,98 +443,300 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* 16 Activity Categories Grid (BuddySearch Full Categories) */}
-      <section style={{ padding: '60px 20px', maxWidth: 1240, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h2 style={{ fontSize: '2.2rem', marginBottom: 10, fontWeight: 800, letterSpacing: '-0.025em' }}>
+      {/* 16 Activity Categories Grid (BuddySearch Full Categories) - Redesigned */}
+      <section style={{ padding: '70px 20px', maxWidth: 1280, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-full)',
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+            marginBottom: 16
+          }}>
+            <Sparkles size={14} color="var(--color-primary)" />
+            <span style={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-primary)' }}>
+              16 Verified Companion Categories
+            </span>
+          </div>
+
+          <h2 style={{ fontSize: '2.4rem', marginBottom: 12, fontWeight: 800, letterSpacing: '-0.025em', color: 'var(--text-main)' }}>
             What kind of buddy are you looking for?
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: 640, margin: '0 auto' }}>
-            16 social companionship categories tailored for plans, hobbies, and everyday outings. Transparent hourly rates.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', maxWidth: 660, margin: '0 auto', lineHeight: 1.6 }}>
+            Safe, verified social companionship tailored for weekend plans, hobbies, daily workouts, or city exploration. Transparent hourly rates with zero hidden markups.
           </p>
+
+          {/* Category Group Filter Pills */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginTop: 28
+          }}>
+            {CATEGORY_GROUPS.map(grp => {
+              const isActive = selectedCategoryGroup === grp.id;
+              const count = grp.id === 'all' 
+                ? CATEGORIES.length 
+                : CATEGORIES.filter(c => CATEGORY_THEMES[c.id]?.group === grp.id).length;
+
+              return (
+                <button
+                  key={grp.id}
+                  onClick={() => setSelectedCategoryGroup(grp.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: '0.86rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    background: isActive ? 'var(--color-primary)' : 'var(--bg-elevated)',
+                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                    border: isActive ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+                    boxShadow: isActive ? '0 4px 14px rgba(245, 158, 11, 0.3)' : 'none',
+                    transform: isActive ? 'translateY(-1px)' : 'none'
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.borderColor = 'var(--border-accent)';
+                      e.currentTarget.style.color = 'var(--text-main)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                    }
+                  }}
+                >
+                  <span>{grp.emoji}</span>
+                  <span>{grp.label}</span>
+                  <span style={{
+                    fontSize: '0.74rem',
+                    padding: '2px 7px',
+                    borderRadius: 'var(--radius-full)',
+                    background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-subtle)',
+                    color: isActive ? '#fff' : 'var(--text-muted)'
+                  }} className="tabular-nums">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: 18
-        }}>
-          {CATEGORIES.map(cat => {
-            const IconComp = iconMap[cat.icon] || Compass;
-            return (
-              <div
-                key={cat.id}
-                onClick={() => setActiveTab('discover')}
-                className="glass-panel"
-                style={{
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '22px',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-fast)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.borderColor = 'var(--border-accent)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        {/* Dynamic Category Cards Grid */}
+        <motion.div 
+          layout
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 20
+          }}
+        >
+          <AnimatePresence mode="popLayout">
+            {CATEGORIES
+              .filter(cat => {
+                if (selectedCategoryGroup === 'all') return true;
+                return CATEGORY_THEMES[cat.id]?.group === selectedCategoryGroup;
+              })
+              .map(cat => {
+                const IconComp = iconMap[cat.icon] || Compass;
+                const theme = CATEGORY_THEMES[cat.id] || {
+                  tag: 'Social Companion',
+                  accent: 'var(--color-primary)',
+                  gradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.02) 100%)',
+                  borderHover: 'rgba(245, 158, 11, 0.5)',
+                  iconBg: 'rgba(245, 158, 11, 0.12)',
+                  iconColor: 'var(--color-primary)',
+                  glowColor: 'rgba(245, 158, 11, 0.2)'
+                };
+                const isHovered = hoveredCatId === cat.id;
+
+                return (
+                  <motion.div
+                    key={cat.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94 }}
+                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    onClick={() => {
+                      if (onOpenPostRequest) {
+                        onOpenPostRequest({
+                          title: cat.name,
+                          desc: cat.desc,
+                          category: cat.id
+                        });
+                      } else {
+                        setActiveTab('discover');
+                      }
+                    }}
+                    onMouseEnter={() => setHoveredCatId(cat.id)}
+                    onMouseLeave={() => setHoveredCatId(null)}
+                    style={{
+                      borderRadius: 18,
+                      padding: 24,
+                      cursor: 'pointer',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: 250,
+                      background: isHovered 
+                        ? `${theme.gradient}, var(--bg-surface)` 
+                        : 'var(--bg-surface)',
+                      border: isHovered ? `1px solid ${theme.borderHover}` : '1px solid var(--border-subtle)',
+                      boxShadow: isHovered 
+                        ? `0 12px 32px ${theme.glowColor}, 0 2px 6px rgba(0,0,0,0.06)` 
+                        : '0 2px 8px rgba(0,0,0,0.02)',
+                      transform: isHovered ? 'translateY(-4px)' : 'none',
+                      transition: 'border 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), background 0.24s ease'
+                    }}
+                  >
+                    {/* Top Row: Icon + Tag + Rate */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 14,
+                            background: theme.iconBg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: isHovered ? `0 4px 12px ${theme.glowColor}` : 'none',
+                            transition: 'all 0.2s ease'
+                          }}>
+                            <IconComp size={24} color={theme.iconColor} />
+                          </div>
+                          <div>
+                            <span style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                              color: theme.accent,
+                              display: 'block',
+                              marginBottom: 2
+                            }}>
+                              {theme.tag}
+                            </span>
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              color: 'var(--text-muted)'
+                            }}>
+                              <span style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: '50%',
+                                background: '#10b981',
+                                display: 'inline-block',
+                                boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)'
+                              }} />
+                              <span>Verified Only</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Rate Pill */}
+                        <div style={{
+                          fontSize: '0.76rem',
+                          fontWeight: 800,
+                          color: 'var(--text-main)',
+                          background: 'var(--bg-elevated)',
+                          border: isHovered ? `1px solid ${theme.accent}` : '1px solid var(--border-subtle)',
+                          padding: '4px 10px',
+                          borderRadius: 'var(--radius-full)',
+                          whiteSpace: 'nowrap'
+                        }} className="tabular-nums">
+                          {cat.rate}
+                        </div>
+                      </div>
+
+                      {/* Title & Description */}
+                      <h3 style={{ 
+                        fontSize: '1.14rem', 
+                        fontWeight: 800, 
+                        marginBottom: 8, 
+                        color: 'var(--text-main)',
+                        letterSpacing: '-0.015em'
+                      }}>
+                        {cat.name}
+                      </h3>
+                      <p style={{ 
+                        fontSize: '0.84rem', 
+                        color: 'var(--text-secondary)', 
+                        marginBottom: 16, 
+                        lineHeight: 1.55,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}>
+                        {cat.desc}
+                      </p>
+                    </div>
+
+                    {/* Footer Row: Live Buddy Count & Action Link */}
                     <div style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 'var(--radius-md)',
-                      background: 'rgba(245, 158, 11, 0.12)',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <IconComp size={22} color="var(--color-primary)" />
-                    </div>
-                    <span style={{
-                      fontSize: '0.74rem',
+                      justifyContent: 'space-between',
+                      fontSize: '0.78rem',
                       fontWeight: 700,
-                      color: 'var(--text-main)',
-                      background: 'var(--bg-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-full)'
-                    }} className="tabular-nums">
-                      {cat.rate}
-                    </span>
-                  </div>
+                      paddingTop: 12,
+                      borderTop: '1px solid var(--border-subtle)',
+                      color: isHovered ? theme.accent : 'var(--text-secondary)',
+                      transition: 'color 0.2s ease'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: '50%',
+                          background: '#10b981',
+                          display: 'inline-block',
+                          boxShadow: '0 0 8px rgba(16, 185, 129, 0.8)'
+                        }} />
+                        <span className="tabular-nums" style={{ color: 'var(--text-main)' }}>
+                          {cat.count} Buddies
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>online</span>
+                      </div>
 
-                  <h3 style={{ fontSize: '1.08rem', fontWeight: 700, marginBottom: 6, color: 'var(--text-main)' }}>
-                    {cat.name}
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
-                    {cat.desc}
-                  </p>
-                </div>
-
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '0.76rem',
-                  fontWeight: 700,
-                  color: 'var(--color-primary)',
-                  paddingTop: 10,
-                  borderTop: '1px solid var(--border-subtle)'
-                }}>
-                  <span className="tabular-nums">{cat.count} Buddies Available</span>
-                  <ChevronRight size={15} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        color: isHovered ? theme.accent : 'var(--color-primary)',
+                        transform: isHovered ? 'translateX(3px)' : 'none',
+                        transition: 'transform 0.2s ease'
+                      }}>
+                        <span>Book Buddy</span>
+                        <ChevronRight size={15} />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+          </AnimatePresence>
+        </motion.div>
       </section>
 
       {/* Featured Verified Companions */}
