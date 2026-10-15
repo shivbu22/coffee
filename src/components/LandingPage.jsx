@@ -21,7 +21,6 @@ import {
   Flame,
   Briefcase,
   Car,
-  Bot,
   Fingerprint
 } from 'lucide-react';
 import { CATEGORIES, CITIES, INITIAL_COMPANIONS, PLATFORM_STATS, TESTIMONIALS } from '../data/mockData';
@@ -35,7 +34,6 @@ export default function LandingPage({
   onOpenPostRequest,
   onOpenAuth,
   isLoggedIn = false,
-  onOpenAntigravityAgent,
   onOpenHallmark
 }) {
   const [selectedCity, setSelectedCity] = useState('All Cities');
@@ -146,28 +144,6 @@ export default function LandingPage({
                   <TrendingUp size={17} color="var(--color-primary)" />
                   Become a Buddy — Earn ₹2,000/hr
                 </button>
-                {onOpenAntigravityAgent && (
-                  <button
-                    type="button"
-                    onClick={onOpenAntigravityAgent}
-                    className="btn-secondary"
-                    style={{
-                      padding: '13px 22px',
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      background: 'rgba(168, 85, 247, 0.08)',
-                      borderColor: 'rgba(168, 85, 247, 0.35)',
-                      color: '#d8b4fe',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 8
-                    }}
-                    title="Launch Antigravity AI Concierge for personalized buddy recommendations"
-                  >
-                    <Bot size={17} color="#c084fc" />
-                    AI Concierge
-                  </button>
-                )}
               </>
             )}
           </div>
