@@ -188,13 +188,110 @@ When auditing or reviewing UI code, this skill MUST format findings using a Befo
 
 ---
 
+## 11. The 15 Canonical UX Design Laws for MVP Engineering (2026 Guide)
+
+When designing digital products, MVPs, and complex user flows, you must never design against natural human tendencies. Cognitive biases, spatial habits, and mental shortcuts govern how users interact with screens. These 15 research-backed design laws are organized into 4 cognitive pillars:
+
+### Pillar I: Heuristic Usability (Familiarity & Interaction Physics)
+1. **Fitts's Law (Target Accessibility)**:
+   - *Formula/Principle*: The time required to rapidly move to a target area is a function of the ratio between the distance to the target and the width of the target.
+   - *MVP Application*: Make key buttons large and prominent. On mobile, interactive touch targets must be at least **44×44px** and placed within easy thumb reach (bottom third of screen). On desktop, place high-intent action buttons along natural mouse paths with generous click boundaries.
+   - *Anti-Pattern*: Tiny 16px text-only delete or submit links with zero padding that frustrate mobile users.
+
+2. **Jakob's Law (Mental Models & Familiarity)**:
+   - *Formula/Principle*: Users spend most of their time on other websites and apps. They expect your product to function like the products they already know.
+   - *MVP Application*: Never reinvent standard navigation patterns for the sake of novelty. Search bars go at the top, shopping carts/notifications go top-right, company logos return home, back buttons exist on multi-step workflows, and profile avatars access settings.
+   - *Anti-Pattern*: Hiding critical navigation in obscure gesture-only floating menus or using non-standard symbols for search and checkout.
+
+---
+
+### Pillar II: Gestalt Principles (Visual Perception & Grouping)
+3. **Law of Proximity (Visual Clustering)**:
+   - *Formula/Principle*: Elements placed close to one another are perceived as belonging to the same group or sharing a common purpose.
+   - *MVP Application*: Place labels directly adjacent to inputs (4–6px gap). Place action buttons right below or beside the items they operate on. Ensure the spacing between unrelated sections is at least 2.5× to 3× greater than the spacing between related child items.
+   - *Anti-Pattern*: Equal vertical spacing throughout a form, making it impossible to tell whether a label belongs to the input above or below it.
+
+4. **Law of Similarity (Visual Unity & Meaning)**:
+   - *Formula/Principle*: Elements that share visual characteristics (color, shape, size, typography, orientation) are perceived as having the same functional role.
+   - *MVP Application*: Maintain strict visual consistency for component roles. All primary CTAs must share the same fill, font-weight, and elevation across every screen. Pill badges indicating status must share identical dimensions. Never style static text to look like a clickable link or button.
+   - *Anti-Pattern*: Using 4 different button styles for primary actions across 3 screens.
+
+5. **Law of Common Region (Card & Boundary Hierarchy)**:
+   - *Formula/Principle*: Elements enclosed within a shared boundary with a distinct edge or background are perceived as belonging to a unified group.
+   - *MVP Application*: Organize complex data into distinct cards, sheets, or contrasting surface backgrounds (`var(--bg-surface)` vs `var(--bg-main)`). This keeps interfaces organized and scannable without drawing harsh, distracting 1px divider lines everywhere.
+   - *Anti-Pattern*: Slicing pages into endless wireframe grids with repetitive border-lines instead of using background grouping.
+
+---
+
+### Pillar III: Cognitive Bias & Memory (Decision Speed & Retention)
+6. **Hick's Law (Decision Simplicity)**:
+   - *Formula/Principle*: The time it takes to make a decision increases logarithmically with the number and complexity of choices ($T = b \cdot \log_2(n + 1)$).
+   - *MVP Application*: Restrict choices per view. Never dump 20 unranked options onto a user. Group options into category pill filters, highlight smart defaults, hide niche parameters behind progressive disclosure tabs, and ruthlessly cut optional form fields.
+   - *Anti-Pattern*: An e-commerce or booking screen with 18 unorganized dropdowns and radio buttons causing decision paralysis and drop-off.
+
+7. **Miller's Law (Working Memory Chunking)**:
+   - *Formula/Principle*: The average human can only hold $7 \pm 2$ pieces of information in their working memory simultaneously.
+   - *MVP Application*: Chunk complex content into 5–9 manageable pieces. Divide long sign-up or onboarding sequences into 3–4 numbered steps. Format phone numbers, PAN/Aadhaar cards, and credit cards into distinct 3-to-4 character chunks.
+   - *Anti-Pattern*: Asking for 15 form inputs on a single sprawling, un-chunked page.
+
+8. **Serial Position Effect (Primacy & Recency Anchor)**:
+   - *Formula/Principle*: Users recall the first (primacy) and last (recency) items in a sequence far better than items in the middle.
+   - *MVP Application*: Anchor navigation menus, pricing tiers, and onboarding carousels by placing the highest-value and most critical actions at the very beginning and very end. Place your recommended plan or primary conversion hook in focal anchor positions.
+   - *Anti-Pattern*: Burying the most popular or highest-converting feature in the dead center of a 10-item unordered list.
+
+9. **Von Restorff Effect (Isolation Effect)**:
+   - *Formula/Principle*: When multiple similar items are present, the one that visually differs from the rest will be the one that is noticed and remembered.
+   - *MVP Application*: Guarantee that exactly ONE primary CTA visually dominates each viewport using brand contrast, weight, or elevation. Secondary and tertiary options must remain muted. Use accent callout badges ("Most Popular", "Best Value") sparingly.
+   - *Anti-Pattern*: Multiple competing bright neon buttons on the same card, leaving the user confused about what to click.
+
+10. **Peak-End Rule (Emotional Memory Anchoring)**:
+    - *Formula/Principle*: People evaluate an experience based on how they felt at its peak (most intense emotional point) and its end, rather than the average of every moment.
+    - *MVP Application*: Turn crucial task completions into delightful memories. When a booking, order, or profile setup succeeds, present a high-polish confirmation view, friendly reassuring copy, a celebration micro-interaction, or instant next steps. Design graceful recovery paths for errors.
+    - *Anti-Pattern*: A user completes a payment and is abruptly redirected to a blank home feed with zero confirmation toast or receipt modal.
+
+11. **Zeigarnik Effect (Task Momentum & Incompletion Tension)**:
+    - *Formula/Principle*: People remember uncompleted or interrupted tasks much better than completed ones, creating psychological tension to finish them.
+    - *MVP Application*: Use visible progress bars (e.g. "Step 2 of 3 — 66% Complete!"), profile completion meters ("Profile 80% complete — add a photo to get verified"), and abandoned cart/draft indicators to drive return visits and conversion.
+    - *Anti-Pattern*: Hiding the total number of steps in a signup flow, making users feel trapped in an endless sequence.
+
+---
+
+### Pillar IV: Timing, Simplicity & Robustness (System Trust)
+12. **Doherty Threshold (Sub-400ms Responsiveness)**:
+    - *Formula/Principle*: Productivity and engagement soar when a computer and its users interact at a pace that ensures neither has to wait more than 400ms for a response.
+    - *MVP Application*: Keep UI feedback instantaneous (< 100ms active states on buttons). For asynchronous network operations that take longer than 300ms, immediately render skeleton loaders or optimistic UI updates. Never let a click produce a frozen screen.
+    - *Anti-Pattern*: Clicking "Book Now" with no loading spinner, causing the user to click 5 times and generate duplicate bookings.
+
+13. **Parkinson's Law (Time Perception & Efficiency)**:
+    - *Formula/Principle*: Work expands to fill the time available for its completion.
+    - *MVP Application*: Provide explicit, short time estimates upfront (e.g., "Takes under 2 minutes" or "3 quick questions"). Pair this with real-time field validation so users breeze through flows without artificial friction.
+    - *Anti-Pattern*: Ambiguous forms with no progress tracking that feel like taking an open-ended exam.
+
+14. **Occam's Razor (Ruthless MVP Simplicity)**:
+    - *Formula/Principle*: Among competing hypotheses or designs, the one that makes the fewest assumptions and introduces the least complexity is the best.
+    - *MVP Application*: Eliminate superfluous elements, speculative features, redundant copy, and unnecessary confirmation modals. Every visual element on screen must earn its existence by directly supporting the core user objective.
+    - *Anti-Pattern*: Over-engineering an MVP with 12 nested sub-menus and 4 levels of filtering when users only need 1 search bar and 4 category pills.
+
+15. **Postel's Law (Robustness Principle)**:
+    - *Formula/Principle*: "Be liberal in what you accept, and conservative in what you send."
+    - *MVP Application*: Forgive diverse user inputs gracefully. Accept phone numbers with or without spaces, dashes, country codes, or parentheses; strip uppercase from emails; handle trailing whitespace in text inputs. Always output normalized, consistent, crystal-clear feedback.
+    - *Anti-Pattern*: Rejecting a form with a red error "Invalid Phone Number" because the user included a hyphen or space.
+
+---
+
 ## Verification & Execution Checklist
 
-Before declaring any UI implementation complete, run this checklist:
-- [ ] **Contrast**: All body text passes WCAG 2.2 AA (≥ 4.5:1 ratio against background).
-- [ ] **Grid**: Every spacing token is a multiple of 4px or 8px.
-- [ ] **Touch Targets**: All mobile buttons, links, and icons have a minimum 44×44px hit area.
-- [ ] **Typography**: Tabular numerals enabled for prices and counts; uppercase text has tracking; measures capped at 75ch.
-- [ ] **Focus Rings**: All interactive elements have `:focus-visible` styles with distinct high-contrast offset.
-- [ ] **State Coverage**: Default, hover, pressed, focus, loading, and disabled states are explicitly defined.
-- [ ] **Cognitive Load**: Forms are single-column; choices are chunked with category pills.
+Before declaring any UI or MVP implementation complete, audit against this canonical checklist:
+- [ ] **Fitts's Law**: Mobile touch targets are ≥ 44×44px; primary actions sit in reachable thumb zones.
+- [ ] **Jakob's Law**: Standard navigation, search, and checkout patterns follow familiar conventions.
+- [ ] **Proximity & Common Region**: Spacing strictly adheres to the 4/8pt scale; cards delineate content without border noise.
+- [ ] **Similarity**: Global button hierarchy (Primary, Secondary, Ghost, Destructive) is unified across screens.
+- [ ] **Hick's & Miller's Laws**: No view presents > 7 un-chunked choices; complex flows are split into steps.
+- [ ] **Serial Position & Von Restorff**: Critical items are anchored at sequence ends; only 1 primary CTA dominates the view.
+- [ ] **Peak-End & Zeigarnik**: Multi-step flows show clear progress; task completion triggers delightful confirmation.
+- [ ] **Doherty Threshold**: Visual feedback is < 100ms; asynchronous actions show skeletons or spinners.
+- [ ] **Parkinson's & Occam's Razor**: Time estimates are clear; non-essential fields and elements are removed.
+- [ ] **Postel's Law**: Inputs accept flexible formatting (phone numbers, emails, postal codes) without rigid validation errors.
+- [ ] **Contrast & Accessibility**: All body text passes WCAG 2.2 AA (≥ 4.5:1 ratio); focus-visible rings are present.
+- [ ] **Typography**: Tabular numerals enabled for prices and counts; line measures capped at 75ch.
+
