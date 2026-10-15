@@ -11,13 +11,9 @@ import {
   LogOut, 
   Search, 
   Plus, 
-  ShieldCheck,
   CheckCircle2,
   Lock,
-  Layers,
-  ChevronRight,
-  X,
-  Bot
+  X
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -29,21 +25,20 @@ export default function BuddyAppShell({
   hasActiveSub = false,
   unreadCount,
   notificationCount: externalNotificationCount,
-  setNotificationCount: externalSetNotificationCount,
+  setNotificationCount: _externalSetNotificationCount,
   onOpenSubscribe,
-  onUnlockSubscription,
+  onUnlockSubscription: _onUnlockSubscription,
   onOpenPostRequest,
   buddyProfile,
-  onOpenAdminPortal,
+  onOpenAdminPortal: _onOpenAdminPortal,
   onLogout,
   onShowToast,
-  onOpenAntigravityAgent,
-  onOpenHallmark,
+  onOpenAntigravityAgent: _onOpenAntigravityAgent,
+  onOpenHallmark: _onOpenHallmark,
   children
 }) {
-  const [internalNotificationCount, setInternalNotificationCount] = useState(2);
+  const [internalNotificationCount] = useState(2);
   const notificationCount = externalNotificationCount !== undefined ? externalNotificationCount : internalNotificationCount;
-  const setNotificationCount = externalSetNotificationCount || setInternalNotificationCount;
   const [showPwaPrompt, setShowPwaPrompt] = useState(true);
 
   const userName = buddyProfile?.name || 'Shiv Y';
@@ -57,14 +52,24 @@ export default function BuddyAppShell({
         {
           id: 'feed',
           label: 'Hire',
+          subtitle: 'Live Gigs',
           icon: Radio,
+          accentColor: '#e11d48',
+          iconBg: 'rgba(225, 29, 72, 0.1)',
+          gradient: 'linear-gradient(90deg, rgba(225, 29, 72, 0.08) 0%, rgba(225, 29, 72, 0.01) 100%)',
+          borderColor: 'rgba(225, 29, 72, 0.16)',
           badge: null,
           isPaid: true
         },
         {
           id: 'discover',
           label: 'Find',
+          subtitle: 'Directory',
           icon: Compass,
+          accentColor: '#0284c7',
+          iconBg: 'rgba(2, 132, 199, 0.1)',
+          gradient: 'linear-gradient(90deg, rgba(2, 132, 199, 0.08) 0%, rgba(2, 132, 199, 0.01) 100%)',
+          borderColor: 'rgba(2, 132, 199, 0.16)',
           badge: null,
           isPaid: true
         }
@@ -162,128 +167,264 @@ export default function BuddyAppShell({
 
           {/* Navigation Groups */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {navItems.map((group) => (
-              <div key={group.group}>
-                <div style={{
-                  fontSize: '0.66rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.06em',
-                  color: '#94a3b8',
-                  paddingLeft: 10,
-                  marginBottom: 6,
-                  textTransform: 'uppercase'
-                }}>
-                  {group.group}
-                </div>
+            {navItems.map((group) => {
+              const isExploreGroup = group.group === 'EXPLORE';
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {group.items.map((item) => {
-                    const IconComp = item.icon;
-                    const isActive = activeTab === item.id;
+              return (
+                <div key={group.group}>
+                  <div style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.06em',
+                    color: '#94a3b8',
+                    paddingLeft: 10,
+                    marginBottom: 6,
+                    textTransform: 'uppercase'
+                  }}>
+                    {group.group}
+                  </div>
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          if (item.onClick) {
-                            item.onClick();
-                          } else {
-                            setActiveTab(item.id);
-                          }
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          width: '100%',
-                          padding: '9px 12px',
-                          borderRadius: 12,
-                          background: isActive ? '#fff1f2' : 'transparent',
-                          color: isActive ? '#e11d48' : '#475569',
-                          border: 'none',
-                          fontSize: '0.86rem',
-                          fontWeight: isActive ? 700 : 500,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isActive) {
-                            e.currentTarget.style.background = '#f8fafc';
-                            e.currentTarget.style.color = '#0f172a';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isActive) {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = '#475569';
-                          }
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <IconComp size={17} color={isActive ? '#e11d48' : 'currentColor'} strokeWidth={isActive ? 2.3 : 1.8} />
-                          <span>{item.label}</span>
-                        </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: isExploreGroup ? 6 : 3 }}>
+                    {group.items.map((item) => {
+                      const IconComp = item.icon;
+                      const isActive = activeTab === item.id;
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {item.isPaid && (
-                            hasActiveSub ? (
+                      if (isExploreGroup) {
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              if (item.onClick) {
+                                item.onClick();
+                              } else {
+                                setActiveTab(item.id);
+                              }
+                            }}
+                            style={{
+                              position: 'relative',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              width: '100%',
+                              padding: '8px 10px',
+                              borderRadius: 12,
+                              background: isActive 
+                                ? (item.gradient || 'rgba(225, 29, 72, 0.08)') 
+                                : 'transparent',
+                              color: isActive ? '#0f172a' : '#475569',
+                              border: isActive 
+                                ? `1px solid ${item.borderColor || 'rgba(225, 29, 72, 0.16)'}` 
+                                : '1px solid transparent',
+                              boxShadow: isActive ? '0 1px 4px rgba(0, 0, 0, 0.04)' : 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                              textAlign: 'left'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isActive) {
+                                e.currentTarget.style.background = '#f8fafc';
+                                e.currentTarget.style.borderColor = '#e2e8f0';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isActive) {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.borderColor = 'transparent';
+                              }
+                            }}
+                          >
+                            {/* Left vertical active bar */}
+                            {isActive && (
                               <span style={{
-                                background: '#ecfdf5',
-                                color: '#059669',
-                                fontSize: '0.6rem',
-                                fontWeight: 800,
-                                padding: '2px 6px',
-                                borderRadius: 9999,
-                                border: '1px solid #a7f3d0',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                                letterSpacing: '0.04em'
-                              }}>
-                                ACTIVE
-                              </span>
-                            ) : (
-                              <span style={{
-                                background: '#fff1f2',
-                                color: '#e11d48',
-                                fontSize: '0.62rem',
-                                fontWeight: 800,
-                                padding: '2px 7px',
-                                borderRadius: 9999,
-                                border: '1px solid #fecdd3',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                                letterSpacing: '0.04em',
-                                boxShadow: '0 1px 2px rgba(225, 29, 72, 0.08)'
-                              }}>
-                                <Lock size={10} strokeWidth={2.4} />
-                                PAID
-                              </span>
-                            )
-                          )}
+                                position: 'absolute',
+                                left: 0,
+                                top: '18%',
+                                bottom: '18%',
+                                width: 3.5,
+                                borderRadius: '0 4px 4px 0',
+                                background: item.accentColor || '#e11d48'
+                              }} />
+                            )}
 
-                          {item.badge !== null && (
-                            <span style={{
-                              background: '#e11d48',
-                              color: '#ffffff',
-                              fontSize: '0.65rem',
-                              fontWeight: 800,
-                              padding: '1px 6px',
-                              borderRadius: 9999
-                            }}>
-                              {item.badge}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                              <div style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 9,
+                                background: isActive ? (item.iconBg || 'rgba(225, 29, 72, 0.12)') : '#f1f5f9',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                border: isActive ? `1px solid ${item.accentColor || '#e11d48'}33` : '1px solid #f1f5f9',
+                                transition: 'all 0.18s ease'
+                              }}>
+                                <IconComp 
+                                  size={16} 
+                                  color={isActive ? (item.accentColor || '#e11d48') : '#64748b'} 
+                                  strokeWidth={isActive ? 2.4 : 1.8} 
+                                />
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{
+                                  fontSize: '0.86rem',
+                                  fontWeight: isActive ? 800 : 600,
+                                  color: isActive ? '#0f172a' : '#334155',
+                                  lineHeight: 1.2
+                                }}>
+                                  {item.label}
+                                </div>
+                                {item.subtitle && (
+                                  <div style={{
+                                    fontSize: '0.67rem',
+                                    fontWeight: 600,
+                                    color: isActive ? item.accentColor : '#94a3b8',
+                                    lineHeight: 1.2,
+                                    marginTop: 2,
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {item.subtitle}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                              {item.isPaid && (
+                                hasActiveSub ? (
+                                  item.id === 'feed' ? (
+                                    <span style={{
+                                      background: '#ecfdf5',
+                                      color: '#059669',
+                                      fontSize: '0.62rem',
+                                      fontWeight: 800,
+                                      padding: '2px 7px',
+                                      borderRadius: 9999,
+                                      border: '1px solid #a7f3d0',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      letterSpacing: '0.04em'
+                                    }}>
+                                      <span style={{
+                                        width: 5,
+                                        height: 5,
+                                        borderRadius: '50%',
+                                        background: '#10b981',
+                                        boxShadow: '0 0 5px rgba(16, 185, 129, 0.9)'
+                                      }} />
+                                      LIVE
+                                    </span>
+                                  ) : (
+                                    <span style={{
+                                      background: '#f0fdf4',
+                                      color: '#15803d',
+                                      fontSize: '0.62rem',
+                                      fontWeight: 800,
+                                      padding: '2px 7px',
+                                      borderRadius: 9999,
+                                      border: '1px solid #bbf7d0',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                      letterSpacing: '0.04em'
+                                    }}>
+                                      <CheckCircle2 size={10} strokeWidth={2.4} />
+                                      VERIFIED
+                                    </span>
+                                  )
+                                ) : (
+                                  <span style={{
+                                    background: '#fff1f2',
+                                    color: '#e11d48',
+                                    fontSize: '0.62rem',
+                                    fontWeight: 800,
+                                    padding: '2px 7px',
+                                    borderRadius: 9999,
+                                    border: '1px solid #fecdd3',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    letterSpacing: '0.04em',
+                                    boxShadow: '0 1px 2px rgba(225, 29, 72, 0.08)'
+                                  }}>
+                                    <Lock size={10} strokeWidth={2.4} />
+                                    PRO
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            if (item.onClick) {
+                              item.onClick();
+                            } else {
+                              setActiveTab(item.id);
+                            }
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                            padding: '9px 12px',
+                            borderRadius: 12,
+                            background: isActive ? '#fff1f2' : 'transparent',
+                            color: isActive ? '#e11d48' : '#475569',
+                            border: 'none',
+                            fontSize: '0.86rem',
+                            fontWeight: isActive ? 700 : 500,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            textAlign: 'left'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isActive) {
+                              e.currentTarget.style.background = '#f8fafc';
+                              e.currentTarget.style.color = '#0f172a';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.color = '#475569';
+                            }
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <IconComp size={17} color={isActive ? '#e11d48' : 'currentColor'} strokeWidth={isActive ? 2.3 : 1.8} />
+                            <span>{item.label}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {item.badge !== null && (
+                              <span style={{
+                                background: '#e11d48',
+                                color: '#ffffff',
+                                fontSize: '0.65rem',
+                                fontWeight: 800,
+                                padding: '1px 6px',
+                                borderRadius: 9999
+                              }}>
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
