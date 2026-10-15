@@ -1183,12 +1183,12 @@ export default function ChatsView({
                   gap: 5,
                   boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                 }}>
-                  <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, marginRight: 4 }}>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600, marginRight: 4 }}>
                     {activeChat.participant.name} is typing
                   </span>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#e11d48', animation: 'bounce 1s infinite 0s' }} />
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#e11d48', animation: 'bounce 1s infinite 0.2s' }} />
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#e11d48', animation: 'bounce 1s infinite 0.4s' }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-primary)', animation: 'typingPulse 1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0s' }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-primary)', animation: 'typingPulse 1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0.2s' }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-primary)', animation: 'typingPulse 1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0.4s' }} />
                 </div>
               </div>
             )}

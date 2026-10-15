@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T00:48:00.000Z",
+  "title": "Design System: FindCo",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Warm Coral", "canonical": "#fa6e5e", "tonalRamp": ["#4a120c", "#751f15", "#a62e21", "#d84b3b", "#fa6e5e", "#fc9184", "#fdbbb2", "#feeee9"] },
+      "peach": { "role": "secondary", "displayName": "Honey Peach", "canonical": "#f8a84e", "tonalRamp": ["#452100", "#733700", "#a85202", "#db740e", "#f8a84e", "#fac07e", "#fcd9b0", "#fef3e5"] },
+      "mint": { "role": "tertiary", "displayName": "Mint Teal", "canonical": "#38b29c", "tonalRamp": ["#07352d", "#0e564a", "#1b8271", "#289984", "#38b29c", "#68cbba", "#9ee1d5", "#e6f8f4"] },
+      "neutral-bg": { "role": "neutral", "displayName": "Pearl Cream Canvas", "canonical": "#faf9f6", "tonalRamp": ["#1a1917", "#36332e", "#5c5750", "#878077", "#b8b1a7", "#ded9d2", "#f2efe9", "#faf9f6"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display Heading", "purpose": "Hero titles and brand statements." },
+      "headline": { "displayName": "Section Headline", "purpose": "View titles and modal headings." },
+      "body": { "displayName": "Body Text", "purpose": "Bios, descriptions, and user guidance." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 3px 0 rgba(44, 54, 71, 0.04)", "purpose": "Flat card surfaces at rest." },
+      { "name": "shadow-md", "value": "0 4px 12px -2px rgba(44, 54, 71, 0.07)", "purpose": "Hover lifts and elevated containers." },
+      { "name": "shadow-xl", "value": "0 20px 36px -10px rgba(44, 54, 71, 0.12)", "purpose": "Floating modals and notifications." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Snappy spring easing for all interactive UI." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary CTA button with warm coral background and spring hover.",
+      "html": "<button class=\"ds-btn-primary\">Connect & Chat</button>",
+      "css": ".ds-btn-primary { background: #fa6e5e; color: #ffffff; padding: 10px 18px; min-height: 44px; font-weight: 700; font-size: 0.92rem; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(250, 110, 94, 0.35); } .ds-btn-primary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Filter Category Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Quick-filter category pill with active/inactive states.",
+      "html": "<button class=\"ds-chip-active\">All Buddies</button>",
+      "css": ".ds-chip-active { background: #fa6e5e; color: #ffffff; padding: 7px 15px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700; border: 1px solid #fa6e5e; cursor: pointer; box-shadow: 0 2px 8px rgba(250, 110, 94, 0.28); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Welcoming Urban Sanctuary",
+    "overview": "FindCo's visual language balances radical safety transparency with warm, human hospitality. Designed for urban Indians navigating social co-activities, the interface feels friendly and approachable while maintaining bank-grade cryptographic trust cues.",
+    "keyCharacteristics": [
+      "Warm Pearl Cream canvas (#faf9f6) with pure white elevated surface cards",
+      "Human geometry with generous rounded corners (8px, 12px, 16px) and circular pill tags",
+      "Mint Teal (#38b29c) and Emerald (#10b981) for cryptographic Hallmark trust",
+      "Geometric Outfit headings paired with high-legibility Plus Jakarta Sans body copy"
+    ],
+    "rules": [
+      { "name": "The Rarity of Coral Rule", "body": "The primary coral accent (#fa6e5e) is reserved for the single highest-value CTA per view. Secondary actions use neutral or ghost borders.", "section": "colors" },
+      { "name": "The Tabular Pricing Rule", "body": "All prices must strictly use .tabular-nums to avoid layout jitter during live slider interactions.", "section": "typography" },
+      { "name": "The Surface-Over-Line Rule", "body": "Group related elements inside clear surface cards with soft elevation instead of noisy 1px dividing lines.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do maintain minimum 44×44px touch targets on all interactive elements.",
+      "Do use .tabular-nums for all dynamic numerical data and pricing.",
+      "Do enforce text-wrap: balance on headings to prevent orphan words."
+    ],
+    "donts": [
+      "Don't use pure black #000 text on saturated primary colors; use crisp white #ffffff on active coral.",
+      "Don't use heavy 4px solid borders on one side of cards as a category accent (the classic AI UI tell).",
+      "Don't animate layout properties (width, height, padding, margin); animate transform and opacity instead.",
+      "Don't use cartoonish bounce keyframe easing in business UI."
+    ]
+  }
+}

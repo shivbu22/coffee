@@ -614,10 +614,12 @@ export default function BuddyProfileView({
         }}>
           <div style={{
             height: '100%',
-            width: `${completionPercentage}%`,
+            width: '100%',
+            transform: `scaleX(${Math.max(0, Math.min(100, completionPercentage)) / 100})`,
+            transformOrigin: 'left',
             background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)',
             borderRadius: 9999,
-            transition: 'width 0.4s ease'
+            transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
           }} />
         </div>
 

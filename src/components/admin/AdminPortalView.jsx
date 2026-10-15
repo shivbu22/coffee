@@ -930,7 +930,8 @@ export default function AdminPortalView({
                   style={{
                     padding: '24px',
                     borderRadius: 'var(--radius-lg)',
-                    borderLeft: `4px solid ${inc.severity === 'critical' ? 'var(--color-rose)' : inc.severity === 'high' ? 'var(--color-gold)' : 'var(--color-sky)'}`
+                    border: '1px solid var(--border-subtle)',
+                    boxShadow: 'var(--shadow-sm)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

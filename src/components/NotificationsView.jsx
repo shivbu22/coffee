@@ -10,18 +10,13 @@ import {
   Clock, 
   ArrowRight, 
   Check, 
-  X, 
-  Filter, 
-  Sparkles,
-  Lock,
-  ChevronRight,
-  ExternalLink
+  X
 } from 'lucide-react';
 
 export default function NotificationsView({ 
   notifications = [], 
   setNotifications, 
-  notificationCount = 0, 
+  _notificationCount = 0, 
   setNotificationCount, 
   onNavigate, 
   onShowToast 
@@ -341,17 +336,16 @@ export default function NotificationsView({
               <div
                 key={notif.id}
                 style={{
-                  background: '#ffffff',
-                  borderRadius: 18,
-                  border: notif.isRead ? '1px solid #e2e8f0' : '1px solid #fecdd3',
-                  borderLeft: notif.isRead ? '4px solid #cbd5e1' : '4px solid #e11d48',
+                  background: notif.isRead ? 'var(--bg-card)' : 'var(--color-primary-bg)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: notif.isRead ? '1px solid var(--border-subtle)' : '1px solid rgba(250, 110, 94, 0.3)',
                   padding: '18px 22px',
-                  boxShadow: notif.isRead ? '0 2px 6px rgba(0,0,0,0.02)' : '0 4px 16px -2px rgba(225, 29, 72, 0.08)',
+                  boxShadow: notif.isRead ? 'var(--shadow-sm)' : '0 4px 14px var(--color-primary-glow)',
                   display: 'flex',
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
                   gap: 16,
-                  transition: 'all 0.18s ease'
+                  transition: 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = 'translateY(-1px)';
