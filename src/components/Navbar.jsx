@@ -17,7 +17,8 @@ import {
   LayoutDashboard,
   LogOut,
   ArrowRight,
-  Bot
+  Bot,
+  HelpCircle
 } from 'lucide-react';
 
 export default function Navbar({ 
@@ -659,6 +660,34 @@ export default function Navbar({
                   >
                     <Award size={15} color="var(--color-gold)" />
                     <span>Passes & Membership</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('help');
+                      setIsProfileOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: activeTab === 'help' ? 'var(--bg-elevated)' : 'transparent',
+                      border: 'none',
+                      color: 'var(--text-main)',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'var(--transition-fast)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = activeTab === 'help' ? 'var(--bg-elevated)' : 'transparent'}
+                  >
+                    <HelpCircle size={15} color="var(--color-primary)" />
+                    <span>Help & Escrow FAQ</span>
                   </button>
 
                   {/* Protected Admin Access Discrete Option */}

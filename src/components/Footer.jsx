@@ -496,6 +496,45 @@ export default function Footer({
               <ShieldCheck size={14} color="var(--color-emerald)" />
               <span style={{ color: 'var(--text-secondary)' }}>Real-Time Safety & Escrow Lock</span>
             </li>
+            <li>
+              <button
+                type="button"
+                onClick={() => handleNavClick('help')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  cursor: 'pointer',
+                  fontSize: '0.86rem',
+                  fontWeight: 600,
+                  padding: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'var(--transition-fast)'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = 'var(--color-primary)';
+                  e.currentTarget.style.transform = 'translateX(3px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = 'var(--text-main)';
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }}
+              >
+                <span>Help Center & Escrow FAQ</span>
+                <span style={{
+                  fontSize: '0.62rem',
+                  padding: '1px 5px',
+                  borderRadius: 4,
+                  background: 'var(--color-primary-bg)',
+                  color: 'var(--color-primary)',
+                  fontWeight: 800
+                }}>
+                  FAQ
+                </span>
+              </button>
+            </li>
             <li style={{ marginTop: 4 }}>
               <a 
                 href="mailto:safety@findco.in" 
