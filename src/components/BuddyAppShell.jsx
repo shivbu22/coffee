@@ -39,7 +39,13 @@ export default function BuddyAppShell({
 }) {
   const [internalNotificationCount] = useState(2);
   const notificationCount = externalNotificationCount !== undefined ? externalNotificationCount : internalNotificationCount;
-  const [showPwaPrompt, setShowPwaPrompt] = useState(true);
+  const [showPwaPrompt, setShowPwaPrompt] = useState(() => {
+    try {
+      return !localStorage.getItem('findco_pwa_dismissed');
+    } catch {
+      return false;
+    }
+  });
 
   const userName = buddyProfile?.name || 'Shiv Y';
   const userAvatar = buddyProfile?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces';
@@ -631,112 +637,111 @@ export default function BuddyAppShell({
         </main>
       </div>
 
-      {/* Floating PWA Card matching BuddySearch Screenshot */}
+      {/* Floating PWA Card matching Antinoob UI/UX Design System */}
       {showPwaPrompt && (
         <div style={{
           position: 'fixed',
-          bottom: 24,
+          bottom: 84,
           right: 24,
-          width: 350,
-          background: '#ffffff',
-          borderRadius: 20,
-          padding: 18,
-          boxShadow: '0 16px 36px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+          width: 340,
+          maxWidth: 'calc(100vw - 32px)',
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '20px',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-xl)',
           zIndex: 90,
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
+          gap: 14,
           animation: 'fadeInScale 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #f43f5e, #e11d48)',
+              width: 42,
+              height: 42,
+              borderRadius: 'var(--radius-md)',
+              background: 'linear-gradient(135deg, var(--color-primary), var(--color-peach))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff',
-              fontSize: 18,
               flexShrink: 0,
-              boxShadow: '0 4px 10px rgba(225, 29, 72, 0.25)'
+              boxShadow: '0 4px 12px var(--color-primary-glow)'
             }}>
               <Search size={20} color="#ffffff" strokeWidth={2.5} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>
-                Add FindCo to your Home Screen
+              <div style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 2, letterSpacing: '-0.015em' }}>
+                Add FindCo App
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.4 }}>
-                Faster access, offline support & chat notifications
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                Faster access, offline support & live companion alerts.
               </div>
             </div>
             <button 
               type="button" 
-              onClick={() => setShowPwaPrompt(false)}
+              onClick={() => {
+                setShowPwaPrompt(false);
+                try { localStorage.setItem('findco_pwa_dismissed', 'true'); } catch {}
+              }}
               aria-label="Dismiss banner"
-              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 2 }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: 4,
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setShowPwaPrompt(false);
-              if (onShowToast) onShowToast('FindCo shortcut added to your device home screen!', 'success');
-            }}
-            style={{
-              padding: '10px',
-              borderRadius: 10,
-              background: '#e11d48',
-              color: '#ffffff',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)'
-            }}
-          >
-            Add to Home Screen
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => {
-              setShowPwaPrompt(false);
-              if (onShowToast) onShowToast('Chat & session push notifications enabled.', 'info');
-            }}
-            style={{
-              padding: '8px',
-              borderRadius: 8,
-              background: '#fff1f2',
-              color: '#e11d48',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            Enable Notifications Only
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => setShowPwaPrompt(false)}
-            style={{
-              textAlign: 'center',
-              fontSize: '0.74rem',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              border: 'none',
-              background: 'none'
-            }}
-          >
-            Not Now
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPwaPrompt(false);
+                try { localStorage.setItem('findco_pwa_dismissed', 'true'); } catch {}
+                if (onShowToast) onShowToast('FindCo shortcut added to your device home screen!', 'success');
+              }}
+              className="btn-primary"
+              style={{
+                flex: 1,
+                padding: '10px 16px',
+                fontSize: '0.85rem',
+                minHeight: 40,
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6
+              }}
+            >
+              <span>Install to Home Screen</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPwaPrompt(false);
+                try { localStorage.setItem('findco_pwa_dismissed', 'true'); } catch {}
+              }}
+              className="btn-secondary"
+              style={{
+                padding: '10px 14px',
+                fontSize: '0.8rem',
+                minHeight: 40,
+                borderRadius: 'var(--radius-md)'
+              }}
+            >
+              Later
+            </button>
+          </div>
         </div>
       )}
 

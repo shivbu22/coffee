@@ -350,27 +350,34 @@ export default function LandingPage({
                   style={{
                     background: isSelected ? 'var(--color-primary)' : 'var(--bg-card)',
                     border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--border-subtle)'}`,
-                    color: isSelected ? '#000' : 'var(--text-secondary)',
-                    padding: '5px 13px',
+                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                    padding: '7px 15px',
                     borderRadius: 'var(--radius-full)',
-                    fontSize: '0.78rem',
+                    fontSize: '0.82rem',
                     fontWeight: isSelected ? 700 : 600,
                     cursor: 'pointer',
+                    boxShadow: isSelected ? '0 2px 8px var(--color-primary-glow)' : 'var(--shadow-sm)',
                     transition: 'var(--transition-fast)'
                   }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-accent)';
-                  e.currentTarget.style.color = 'var(--color-primary)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                  e.currentTarget.style.color = 'var(--text-secondary)';
-                }}
-              >
-                {city}
-              </button>
-            );
-          })}
+                  onMouseEnter={e => {
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = 'var(--border-accent)';
+                      e.currentTarget.style.color = 'var(--color-primary)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  {city}
+                </button>
+              );
+            })}
           </div>
 
           {/* Social Proof Counter Bar */}

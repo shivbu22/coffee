@@ -3,12 +3,9 @@ import {
   Search, 
   MapPin, 
   Star, 
-  ShieldCheck, 
   Filter, 
   MessageSquare, 
-  ChevronDown, 
   CheckCircle2,
-  Lock,
   Award
 } from 'lucide-react';
 import { CITIES, CATEGORIES } from '../data/mockData';
@@ -22,7 +19,7 @@ export default function DiscoverView({
   isLoggedIn,
   onOpenAuth,
   onOpenSubscribe,
-  onUnlockSubscription,
+  _onUnlockSubscription,
   onOpenHallmark
 }) {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
@@ -61,40 +58,53 @@ export default function DiscoverView({
 
       {/* Filter Toolbar */}
       <div className="glass-panel" style={{
-        padding: '20px 24px',
+        padding: '24px',
         borderRadius: 'var(--radius-lg)',
         marginBottom: 32,
         display: 'flex',
         flexDirection: 'column',
-        gap: 16
+        gap: 20,
+        boxShadow: 'var(--shadow-sm)',
+        border: '1px solid var(--border-subtle)'
       }}>
         {/* Top search & quick select */}
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
           
           {/* Keyword Search */}
-          <div style={{ flex: '1 1 260px', position: 'relative' }}>
+          <div style={{ flex: '1 1 280px', position: 'relative' }}>
             <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               id="companion-search-input"
               aria-label="Search companions by name, hobby, or area"
               type="text"
-              placeholder="Search by name, hobby, area..."
+              placeholder="Search by name, hobby, neighborhood..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                padding: '11px 16px 11px 40px',
+                padding: '12px 16px 12px 42px',
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md)',
                 color: 'var(--text-main)',
-                fontSize: '0.88rem'
+                fontSize: '0.9rem',
+                minHeight: 44,
+                outline: 'none',
+                transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+              }}
+              onFocus={e => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-glow)';
+              }}
+              onBlur={e => {
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                e.currentTarget.style.boxShadow = 'none';
               }}
             />
           </div>
 
           {/* City Selector */}
-          <div style={{ flex: '0 1 180px' }}>
+          <div style={{ flex: '0 1 190px' }}>
             <select
               id="companion-city-filter"
               aria-label="Filter companions by city"
@@ -102,21 +112,26 @@ export default function DiscoverView({
               onChange={e => setCityFilter(e.target.value)}
               style={{
                 width: '100%',
-                padding: '11px 14px',
+                padding: '12px 14px',
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md)',
                 color: 'var(--text-main)',
-                fontSize: '0.88rem',
-                cursor: 'pointer'
+                fontSize: '0.9rem',
+                minHeight: 44,
+                cursor: 'pointer',
+                outline: 'none',
+                transition: 'border-color 0.2s ease'
               }}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
             >
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
           {/* Category Selector */}
-          <div style={{ flex: '0 1 220px' }}>
+          <div style={{ flex: '0 1 240px' }}>
             <select
               id="companion-category-filter"
               aria-label="Filter companions by activity category"
@@ -124,20 +139,108 @@ export default function DiscoverView({
               onChange={e => setSelectedCategory(e.target.value)}
               style={{
                 width: '100%',
-                padding: '11px 14px',
+                padding: '12px 14px',
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md)',
                 color: 'var(--text-main)',
-                fontSize: '0.88rem',
-                cursor: 'pointer'
+                fontSize: '0.9rem',
+                minHeight: 44,
+                cursor: 'pointer',
+                outline: 'none',
+                transition: 'border-color 0.2s ease'
               }}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
             >
               <option value="All Categories">All Categories</option>
               {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
           </div>
 
+        </div>
+
+        {/* Quick Filter Pills (Hick's Law chunking) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 4 }}>
+            Quick Filters:
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setStarOnly(false);
+              setSelectedCategory('All Categories');
+              setMaxHourlyRate(2000);
+            }}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: !starOnly && selectedCategory === 'All Categories' && maxHourlyRate === 2000 ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+              background: !starOnly && selectedCategory === 'All Categories' && maxHourlyRate === 2000 ? 'var(--color-primary-bg)' : 'var(--bg-card)',
+              color: !starOnly && selectedCategory === 'All Categories' && maxHourlyRate === 2000 ? 'var(--color-primary-text)' : 'var(--text-secondary)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            All Buddies
+          </button>
+          <button
+            type="button"
+            onClick={() => setStarOnly(!starOnly)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: starOnly ? '1px solid var(--color-gold)' : '1px solid var(--border-subtle)',
+              background: starOnly ? 'var(--color-gold-bg)' : 'var(--bg-card)',
+              color: starOnly ? '#b45309' : 'var(--text-secondary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Star size={13} color="var(--color-gold)" fill={starOnly ? "var(--color-gold)" : "none"} />
+            <span>Star Members Only</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMaxHourlyRate(maxHourlyRate === 800 ? 2000 : 800)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: maxHourlyRate === 800 ? '1px solid var(--color-mint)' : '1px solid var(--border-subtle)',
+              background: maxHourlyRate === 800 ? 'var(--color-mint-bg)' : 'var(--bg-card)',
+              color: maxHourlyRate === 800 ? 'var(--color-mint-text)' : 'var(--text-secondary)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            ⚡ Budget-Friendly (≤ ₹800)
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory(selectedCategory === 'Specialty Coffee & Talks' ? 'All Categories' : 'Specialty Coffee & Talks')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: selectedCategory === 'Specialty Coffee & Talks' ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+              background: selectedCategory === 'Specialty Coffee & Talks' ? 'var(--color-primary-bg)' : 'var(--bg-card)',
+              color: selectedCategory === 'Specialty Coffee & Talks' ? 'var(--color-primary-text)' : 'var(--text-secondary)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            ☕ Coffee & Conversations
+          </button>
         </div>
 
         {/* Second Row: Sliders & Toggles */}
@@ -147,13 +250,13 @@ export default function DiscoverView({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 16,
-          paddingTop: 12,
+          paddingTop: 16,
           borderTop: '1px solid var(--border-subtle)'
         }}>
           {/* Rate Slider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-              Max Hourly Rate: <strong style={{ color: 'var(--color-primary)' }}>₹{maxHourlyRate}/hr</strong>
+            <span style={{ fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+              Max Hourly Budget: <strong className="tabular-nums" style={{ color: 'var(--color-primary)' }}>₹{maxHourlyRate}/hr</strong>
             </span>
             <input 
               id="companion-rate-slider"
@@ -168,23 +271,8 @@ export default function DiscoverView({
             />
           </div>
 
-          {/* Star Member Toggle */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.84rem', fontWeight: 600 }}>
-            <input 
-              id="companion-star-toggle"
-              aria-label="Show star companions only"
-              type="checkbox"
-              checked={starOnly}
-              onChange={e => setStarOnly(e.target.checked)}
-              style={{ accentColor: 'var(--color-gold)', width: 16, height: 16 }}
-            />
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-gold)' }}>
-              <Star size={14} color="var(--color-gold)" fill="var(--color-gold)" /> Star Members Only
-            </span>
-          </label>
-
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Found <strong>{filteredCompanions.length}</strong> matching verified buddies
+          <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+            Showing <strong className="tabular-nums" style={{ color: 'var(--text-main)' }}>{filteredCompanions.length}</strong> vetted companions
           </div>
         </div>
 
@@ -305,28 +393,35 @@ export default function DiscoverView({
             className="glass-panel"
             style={{
               borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-subtle)',
+              background: 'var(--bg-card)',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              transition: 'var(--transition-smooth)'
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease'
             }}
             onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
               e.currentTarget.style.borderColor = 'var(--border-accent)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+              e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
             }}
             onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.borderColor = 'var(--border-subtle)';
-              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
             }}
           >
-            {/* Top Image Banner */}
-            <div style={{ position: 'relative', height: 230, width: '100%' }}>
+            {/* Top Image Banner - Radius math formula: child radius matches parent */}
+            <div style={{ position: 'relative', height: 230, width: '100%', borderRadius: '15px 15px 0 0', overflow: 'hidden' }}>
               <img 
                 src={comp.avatar} 
                 alt={comp.name}
                 loading="lazy"
                 decoding="async"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               />
 
               {/* Status Pills */}
@@ -355,14 +450,17 @@ export default function DiscoverView({
                     gap: 5,
                     fontSize: '0.7rem',
                     fontWeight: 800,
-                    padding: '3px 9px',
+                    padding: '4px 10px',
                     borderRadius: 'var(--radius-full)',
-                    background: 'rgba(6, 78, 59, 0.9)',
-                    backdropFilter: 'blur(6px)',
+                    background: 'rgba(6, 78, 59, 0.92)',
+                    backdropFilter: 'blur(8px)',
                     color: '#a7f3d0',
-                    border: '1px solid rgba(167, 243, 208, 0.4)',
-                    cursor: 'pointer'
+                    border: '1px solid rgba(167, 243, 208, 0.5)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease'
                   }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   title="Click to view verified Hallmark Cryptographic Dossier"
                 >
                   <Award size={12} color="#fef08a" />
@@ -375,7 +473,7 @@ export default function DiscoverView({
                 position: 'absolute',
                 top: 14,
                 right: 14,
-                background: 'rgba(0,0,0,0.7)',
+                background: 'rgba(15, 23, 42, 0.78)',
                 backdropFilter: 'blur(8px)',
                 padding: '4px 10px',
                 borderRadius: 'var(--radius-full)',
@@ -383,37 +481,39 @@ export default function DiscoverView({
                 alignItems: 'center',
                 gap: 6,
                 fontSize: '0.72rem',
-                color: comp.isOnline ? 'var(--color-emerald)' : 'var(--text-muted)',
+                color: comp.isOnline ? '#34d399' : 'var(--text-muted)',
                 fontWeight: 600
               }}>
                 <span style={{
                   width: 7,
                   height: 7,
                   borderRadius: '50%',
-                  background: comp.isOnline ? 'var(--color-emerald)' : 'var(--text-dim)',
-                  display: 'inline-block'
+                  background: comp.isOnline ? '#10b981' : 'var(--text-dim)',
+                  display: 'inline-block',
+                  boxShadow: comp.isOnline ? '0 0 8px rgba(16, 185, 129, 0.8)' : 'none'
                 }} />
                 {comp.isOnline ? 'Online now' : 'Offline'}
               </div>
 
-              {/* Rates Tag */}
+              {/* Rates Tag with Tabular Numerals */}
               <div style={{
                 position: 'absolute',
                 bottom: 12,
                 right: 14,
-                background: 'var(--bg-card)',
+                background: 'var(--bg-glass)',
+                backdropFilter: 'blur(10px)',
                 border: '1px solid var(--border-subtle)',
                 boxShadow: 'var(--shadow-md)',
-                padding: '6px 12px',
+                padding: '5px 12px',
                 borderRadius: 'var(--radius-md)',
                 display: 'flex',
                 alignItems: 'baseline',
                 gap: 4
               }}>
-                <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-gold)' }}>
+                <span className="tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-primary)' }}>
                   ₹{comp.hourlyRate}
                 </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>/ hour</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>/ hr</span>
               </div>
             </div>
 
@@ -421,11 +521,11 @@ export default function DiscoverView({
             <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
               
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{comp.name}</h3>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.015em' }}>{comp.name}</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-gold)', fontSize: '0.88rem', fontWeight: 700 }}>
                   <Star size={15} fill="var(--color-gold)" />
-                  <span>{comp.rating}</span>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.78rem' }}>
+                  <span className="tabular-nums">{comp.rating}</span>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.78rem' }} className="tabular-nums">
                     ({comp.reviewsCount})
                   </span>
                 </div>
@@ -456,7 +556,7 @@ export default function DiscoverView({
                 Languages: <strong style={{ color: 'var(--text-secondary)' }}>{comp.languages.join(', ')}</strong>
               </div>
 
-              {/* Action Buttons Row */}
+              {/* Action Buttons Row with 44px touch targets & hover physics */}
               <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
                 <button
                   type="button"
@@ -466,12 +566,17 @@ export default function DiscoverView({
                   className="btn-secondary"
                   style={{
                     flex: '0 0 auto',
-                    padding: '11px 14px',
+                    padding: '10px 14px',
+                    minHeight: 44,
                     fontSize: '0.84rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6
+                    gap: 6,
+                    borderRadius: 'var(--radius-md)',
+                    transition: 'transform 0.15s ease'
                   }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
                   title="Audit Hallmark Trust Credentials"
                 >
                   <Award size={15} color="#059669" />
@@ -490,10 +595,24 @@ export default function DiscoverView({
                     }
                   }}
                   className="btn-primary"
-                  style={{ flex: 1, padding: '11px', fontSize: '0.92rem' }}
+                  style={{ 
+                    flex: 1, 
+                    padding: '10px 16px', 
+                    minHeight: 44,
+                    fontSize: '0.92rem',
+                    fontWeight: 700,
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 7,
+                    transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   <MessageSquare size={16} />
-                  Connect & Chat
+                  <span>Connect & Chat</span>
                 </button>
               </div>
             </div>
