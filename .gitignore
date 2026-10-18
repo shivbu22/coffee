@@ -30,3 +30,8 @@ dist-ssr
 .gravitas/
 testsprite_tests/tmp/
 testsprite_tests/tmp/config.json
+
+node_modules/
+.venv/
+venv/
+__pycache__/
