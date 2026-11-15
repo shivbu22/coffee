@@ -1279,7 +1279,7 @@ export default function AdminPortalView({
               </div>
 
               <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
-                Paste your Supabase project credentials below to connect FindCo directly to live PostgreSQL and Realtime WebSocket channels.
+                Production builds read Supabase credentials from environment variables only (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in Cloudflare Pages). Pasting credentials here is disabled for security — the fields below show the active env config.
               </p>
 
               <form onSubmit={handleSaveCloudCredentials} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

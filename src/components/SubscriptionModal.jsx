@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { SUBSCRIPTION_PLANS } from '../data/mockData';
+import { payWithRazorpay, isRazorpayConfigured } from '../lib/razorpay';
 
 export default function SubscriptionModal({ 
   isOpen, 
@@ -67,21 +68,42 @@ export default function SubscriptionModal({
     }
   };
 
-  const handleCompletePayment = () => {
-    setIsProcessingRazorpay(true);
-    setTimeout(() => {
-      setIsProcessingRazorpay(false);
-      setModalMode('success');
+  const isLivePayment = isRazorpayConfigured();
 
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-
+  const handleCompletePayment = async () => {
+    // 100%-off coupon: no payment to take.
+    if (finalPrice <= 0 || appliedDiscount >= 100) {
       onUnlockSubscription(activePlan.tier);
+      setModalMode('success');
+      onShowToast(`${activePlan.name} activated with your coupon.`, 'success');
+      return;
+    }
+    if (!isLivePayment) {
+      // DEMO MODE — no VITE_RAZORPAY_KEY_ID set, so no real charge happens.
+      setIsProcessingRazorpay(true);
+      setTimeout(() => {
+        setIsProcessingRazorpay(false);
+        setModalMode('success');
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        onUnlockSubscription(activePlan.tier);
+        onShowToast(`DEMO MODE: simulated payment — ${activePlan.name} is now active. No real charge was made.`, 'success');
+      }, 1200);
+      return;
+    }
+    setIsProcessingRazorpay(true);
+    try {
+      const result = await payWithRazorpay({ planId: activePlan.tier, couponCode: couponCode.trim() || undefined });
+      if (!result.free) {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      }
+      onUnlockSubscription(activePlan.tier);
+      setModalMode('success');
       onShowToast(`Payment verified! ${activePlan.name} is now active on your account.`, 'success');
-    }, 1200);
+    } catch (err) {
+      onShowToast(err.message || 'Payment failed. Please try again.', 'error');
+    } finally {
+      setIsProcessingRazorpay(false);
+    }
   };
 
   return (
@@ -593,8 +615,8 @@ export default function SubscriptionModal({
                 alignItems: 'center',
                 gap: 6
               }}>
-                <span>⚠️ DEMO SANDBOX</span>
-                <span style={{ fontWeight: 500 }}>Simulated payment test mode. No real money or bank accounts will be charged.</span>
+                {isLivePayment ? <span>Secure payment by Razorpay</span> : <span>⚠️ DEMO MODE</span>}
+                {isLivePayment ? <span style={{ fontWeight: 500 }}>You will be redirected to Razorpay to pay securely.</span> : <span style={{ fontWeight: 500 }}>DEMO MODE — simulated payment. No real money will be charged. Set VITE_RAZORPAY_KEY_ID to enable live payments.</span>}
               </div>
             </div>
 

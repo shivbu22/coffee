@@ -1,41 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// LocalStorage persistence keys for runtime cloud configurations
-const STORAGE_KEYS = {
-  URL: 'findco_custom_supabase_url',
-  ANON_KEY: 'findco_custom_supabase_anon_key'
-};
-
-/**
- * Retrieve active credentials (Environment variables have priority, followed by runtime storage)
- */
+// Production: Supabase config comes from env vars ONLY.
+// The previous runtime path that let a user paste a custom Supabase URL /
+// anon key in the UI and persisted it in localStorage has been removed —
+// anyone with browser access could point the app at another project.
 export function getActiveSupabaseConfig() {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  
-  let storedUrl = '';
-  let storedKey = '';
-  try {
-    storedUrl = localStorage.getItem(STORAGE_KEYS.URL) || '';
-    storedKey = localStorage.getItem(STORAGE_KEYS.ANON_KEY) || '';
-  } catch (e) {
-    console.warn('[Supabase Config] localStorage not accessible:', e);
-  }
-
-  const url = (envUrl && !envUrl.includes('placeholder')) ? envUrl : storedUrl;
-  const anonKey = (envKey && !envKey.includes('placeholder')) ? envKey : storedKey;
-
-  const isConfigured = Boolean(
-    url && 
-    anonKey && 
-    url.startsWith('https://') &&
-    !url.includes('placeholder')
-  );
-
-  return { url, anonKey, isConfigured, isCustom: Boolean(!envUrl && storedUrl) };
+  const url = import.meta.env.VITE_SUPABASE_URL || '';
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const isConfigured = Boolean(url && anonKey && url.startsWith('https://') && !url.includes('placeholder') && !anonKey.includes('placeholder'));
+  return { url, anonKey, isConfigured, isCustom: false };
 }
 
-// Active client instance
 let activeConfig = getActiveSupabaseConfig();
 export let isSupabaseConfigured = activeConfig.isConfigured;
 
@@ -44,17 +19,8 @@ function initClient() {
   isSupabaseConfigured = activeConfig.isConfigured;
   if (!isSupabaseConfigured) return null;
   return createClient(activeConfig.url, activeConfig.anonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce'
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 10
-      }
-    }
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
+    realtime: { params: { eventsPerSecond: 10 } },
   });
 }
 
@@ -68,31 +34,15 @@ export function redirectToSupabaseDashboard() {
 }
 
 /**
- * Save custom credentials entered via UI (Admin Portal / Settings)
+ * @deprecated Removed in production: custom Supabase config via UI is disabled.
+ * Configure VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in the environment instead.
  */
-export function saveCustomSupabaseConfig(url, anonKey) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.URL, url.trim());
-    localStorage.setItem(STORAGE_KEYS.ANON_KEY, anonKey.trim());
-    supabase = initClient();
-    return { success: true, isConfigured: isSupabaseConfigured };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
+export function saveCustomSupabaseConfig() {
+  return { success: false, error: 'Custom Supabase config is disabled in production. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment (Cloudflare Pages settings) and redeploy.' };
 }
-
-/**
- * Clear custom credentials
- */
 export function clearCustomSupabaseConfig() {
-  try {
-    localStorage.removeItem(STORAGE_KEYS.URL);
-    localStorage.removeItem(STORAGE_KEYS.ANON_KEY);
-    supabase = initClient();
-    return { success: true, isConfigured: isSupabaseConfigured };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
+  try { localStorage.removeItem('findco_custom_supabase_url'); localStorage.removeItem('findco_custom_supabase_anon_key'); } catch {}
+  return { success: true, isConfigured: isSupabaseConfigured };
 }
 
 /**
@@ -103,7 +53,7 @@ export async function checkSupabaseConnection() {
   if (!currentConfig.isConfigured || !supabase) {
     return {
       connected: false,
-      reason: 'No live credentials configured. Set VITE_SUPABASE_URL or enter them in the Cloud Configurator.',
+      reason: 'No live credentials configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the environment.',
       mode: 'Local Storage Fallback Mode',
       url: currentConfig.url || null
     };

@@ -21,6 +21,7 @@ import {
   formatSupabaseUserProfile
 } from '../lib/supabaseClient';
 import { AuthEngine } from '../utils/authEngine';
+import { validateEmail, validatePassword, validatePhoneIN, normalizePhoneIN } from '../utils/validate';
 import { CITIES } from '../data/mockData';
 
 export default function AuthModal({
@@ -103,13 +104,15 @@ export default function AuthModal({
     setErrorMessage(null);
     setSuccessNotice(null);
 
-    if (!email || !password) {
-      setErrorMessage('Please enter both email and password.');
-      return;
-    }
-
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
+    const emailErr = validateEmail(email || '');
+    if (emailErr) { setErrorMessage(emailErr); return; }
+    if (!password) { setErrorMessage('Please enter your password.'); return; }
+    // Enforce the 8-char minimum on sign-up; sign-in keeps server as authority.
+    if (emailMode === 'signup') {
+      const pwErr = validatePassword(password);
+      if (pwErr) { setErrorMessage(pwErr); return; }
+    } else if (password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters.');
       return;
     }
 
@@ -185,9 +188,9 @@ export default function AuthModal({
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+    const cleanPhone = normalizePhoneIN(phone) || '';
+    if (validatePhoneIN(phone)) {
+      setErrorMessage(validatePhoneIN(phone));
       return;
     }
 
@@ -233,7 +236,7 @@ export default function AuthModal({
     try {
       const cleanPhone = phone.replace(/\D/g, '');
 
-      if (isCloudActive && enteredCode !== '489201' && enteredCode !== '123456' && enteredCode !== '4892') {
+      if (isCloudActive) {
         try {
           const res = await SupabaseAuthService.verifyOtp({
             phoneOrEmail: `+91${cleanPhone}`,
@@ -726,7 +729,7 @@ export default function AuthModal({
                     Password
                   </label>
                   {emailMode === 'signin' && (
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Min. 6 characters</span>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Min. 8 characters</span>
                   )}
                 </div>
                 <div style={{

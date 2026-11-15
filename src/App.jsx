@@ -16,6 +16,7 @@ const NotificationsView = lazy(() => import('./components/NotificationsView'));
 const HelpView = lazy(() => import('./components/HelpView'));
 const AdminSecurityGate = lazy(() => import('./components/admin/AdminSecurityGate'));
 const AdminPortalView = lazy(() => import('./components/admin/AdminPortalView'));
+import { ProtectedRoute } from './context/AuthContext.jsx';
 
 // Code-split global modals so initial landing payload is ultra-light
 const AuthModal = lazy(() => import('./components/AuthModal'));
@@ -522,6 +523,7 @@ export default function App() {
               onShowToast={showToast}
             />
           ) : (
+            <ProtectedRoute isAuthenticated={!!adminAuth} fallback={<AdminSecurityGate onAuthenticate={(s)=>setAdminAuth(s)} onExitToConsumer={() => setSiteMode('consumer')} onShowToast={showToast} />}>
             <AdminPortalView 
               adminAuth={adminAuth}
               kycRequests={kycRequests}
@@ -537,6 +539,7 @@ export default function App() {
               }}
               onShowToast={showToast}
             />
+            </ProtectedRoute>
           )}
         </Suspense>
 

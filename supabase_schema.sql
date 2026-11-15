@@ -174,10 +174,15 @@ ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hallmark_credentials ENABLE ROW LEVEL SECURITY;
 
 -- 0. Profiles RLS
+-- NOTE (security): public.profiles contains email + phone. A table-level
+-- SELECT policy cannot hide individual columns, so public access to the
+-- table is removed here. Owners read their own full row; public listings
+-- must use public.public_profiles (safe columns only, created below).
 DROP POLICY IF EXISTS "Public can view member profiles" ON public.profiles;
-CREATE POLICY "Public can view member profiles" 
-    ON public.profiles FOR SELECT 
-    USING (true);
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+CREATE POLICY "Users can view own profile"
+    ON public.profiles FOR SELECT
+    USING (auth.uid() = id OR auth.role() = 'service_role');
 
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" 
@@ -196,14 +201,16 @@ CREATE POLICY "Public can view verified companions"
     USING (true);
 
 DROP POLICY IF EXISTS "Public can insert companion profiles" ON public.companions;
-CREATE POLICY "Public can insert companion profiles" 
-    ON public.companions FOR INSERT 
-    WITH CHECK (true);
+DROP POLICY IF EXISTS "Companions can insert own profile" ON public.companions;
+CREATE POLICY "Companions can insert own profile"
+    ON public.companions FOR INSERT
+    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role');
 
 DROP POLICY IF EXISTS "Companions can update their own profile" ON public.companions;
-CREATE POLICY "Companions can update their own profile" 
-    ON public.companions FOR UPDATE 
-    USING (true);
+CREATE POLICY "Companions can update their own profile"
+    ON public.companions FOR UPDATE
+    USING (auth.uid() = user_id OR auth.role() = 'service_role')
+    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role');
 
 -- 2. Activity Requests RLS
 DROP POLICY IF EXISTS "Public can view activity requests" ON public.activity_requests;
@@ -413,8 +420,7 @@ ON CONFLICT (fingerprint_hash) DO NOTHING;
 
 -- =========================================================================
 -- 7. DPDP ACT 2023 SECTION 12 STATUTORY DATA ERASURE & ANONYMIZATION RPC
--- =========================================================================
-CREATE OR REPLACE FUNCTION public.request_data_erasure()
+-- ==================================================================CREATE OR REPLACE FUNCTION public.request_data_erasure()
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -453,5 +459,58 @@ END;
 $$;
 
 -- =========================================================================
+=======
+
+-- =========================================================================
+-- 8. PAYMENTS & SUBSCRIPTIONS (Razorpay) - added 2026-11-16, idempotent
+-- =========================================================================
+ALTER TABLE public.companions ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_companions_user_id ON public.companions (user_id);
+
+CREATE OR REPLACE VIEW public.public_profiles AS
+    SELECT id, full_name, avatar_url, city, role, created_at
+    FROM public.profiles;
+GRANT SELECT ON public.public_profiles TO anon, authenticated;
+
+CREATE TABLE IF NOT EXISTS public.payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    razorpay_order_id TEXT UNIQUE NOT NULL,
+    razorpay_payment_id TEXT,
+    plan_id TEXT NOT NULL,
+    amount_paise INT NOT NULL CHECK (amount_paise >= 0),
+    currency TEXT NOT NULL DEFAULT 'INR',
+    status TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'paid', 'failed', 'refunded')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    plan_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'cancelled')),
+    current_period_start TIMESTAMPTZ DEFAULT NOW(),
+    current_period_end TIMESTAMPTZ,
+    razorpay_payment_id TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_payments_user ON public.payments (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON public.subscriptions (user_id, status);
+
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own payments" ON public.payments;
+CREATE POLICY "Users can view own payments"
+    ON public.payments FOR SELECT
+    USING (auth.uid() = user_id OR auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON public.subscriptions;
+CREATE POLICY "Users can view own subscriptions"
+    ON public.subscriptions FOR SELECT
+    USING (auth.uid() = user_id OR auth.role() = 'service_role');
+
 -- END OF SCHEMA
 -- =========================================================================

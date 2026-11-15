@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase, SupabaseAuthService, SupabaseService, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { 
   ShieldCheck, 
   Lock, 
@@ -19,52 +20,54 @@ export default function AdminSecurityGate({
 }) {
   const [passkey, setPasskey] = useState('');
   const [totp, setTotp] = useState('');
-  const [operatorId, setOperatorId] = useState('ops-lead@findco.internal');
+  const [operatorId, setOperatorId] = useState('');
   const [showPasskey, setShowPasskey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [attemptsLeft, setAttemptsLeft] = useState(5);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e?.preventDefault();
     setErrorMsg('');
-
-    if (!passkey.trim()) {
-      setErrorMsg('Please enter your administrator security passkey.');
+    if (!operatorId.trim() || !passkey) {
+      setErrorMsg('Please enter your admin email and password.');
       return;
     }
-
+    if (!isSupabaseConfigured || !supabase) {
+      setErrorMsg('Admin access is disabled until Supabase is configured. There are no local passkeys.');
+      return;
+    }
+    if (attemptsLeft <= 0) {
+      setErrorMsg('Security lockout triggered: too many failed attempts. Reload to try again.');
+      return;
+    }
     setIsLoading(true);
-
-    setTimeout(() => {
-      // Valid credentials check:
-      // Accepts authorized passkey "BUDDY-ADMIN-2026", "FINDCO-ADMIN-2026", "admin123", or "buddysearch"
-      const normalizedKey = passkey.trim();
-      const isValid = normalizedKey === 'BUDDY-ADMIN-2026' || normalizedKey === 'FINDCO-ADMIN-2026' || normalizedKey === 'admin123' || normalizedKey === 'buddysearch' || normalizedKey === 'findco';
-
-      if (isValid) {
-        setIsLoading(false);
-        onShowToast('Identity authenticated. Welcome to FindCo Operations Console.', 'success');
-        onAuthenticate({
-          operatorName: 'Inspector Tanvi Deshmukh',
-          operatorId: operatorId || 'ops-lead@findco.internal',
-          role: 'Lead Trust & Safety Officer',
-          authenticatedAt: new Date().toLocaleTimeString(),
-          token: `fco_sec_${Math.random().toString(36).substring(2, 10)}`
-        });
-      } else {
-        setIsLoading(false);
-        const nextAttempts = attemptsLeft - 1;
-        setAttemptsLeft(nextAttempts);
-        if (nextAttempts <= 0) {
-          setErrorMsg('Security lockout triggered: Too many failed authorization attempts. System frozen for 60 seconds.');
-        } else {
-          setErrorMsg(`Invalid security key or token. ${nextAttempts} attempt${nextAttempts === 1 ? '' : 's'} remaining before system lockout.`);
-        }
+    try {
+      const data = await SupabaseAuthService.signInWithEmail(operatorId.trim(), passkey);
+      const userId = data?.user?.id || data?.session?.user?.id;
+      if (!userId) throw new Error('Sign-in did not return a user session.');
+      const profile = await SupabaseService.getProfile(userId).catch(() => null);
+      const role = profile?.role; // profile only: user_metadata is user-controlled and must never grant admin
+      if (role !== 'admin') {
+        await supabase.auth.signOut();
+        throw new Error('This account is not an admin. Access requires profiles.role = admin in Supabase.');
       }
-    }, 600);
+      setIsLoading(false);
+      onShowToast('Identity authenticated. Welcome to FindCo Operations Console.', 'success');
+      onAuthenticate({
+        operatorName: profile?.full_name || data.user.email,
+        operatorId: data.user.email,
+        role: 'admin',
+        authenticatedAt: new Date().toISOString(),
+        token: data.session?.access_token || null
+      });
+    } catch (err) {
+      setIsLoading(false);
+      const nextAttempts = attemptsLeft - 1;
+      setAttemptsLeft(nextAttempts);
+      setErrorMsg(err.message || 'Admin sign-in failed.');
+    }
   };
-
 
   return (
     <div style={{
@@ -191,7 +194,7 @@ export default function AdminSecurityGate({
           {/* Operator ID */}
           <div style={{ marginBottom: 14 }}>
             <label htmlFor="admin-operator-id" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#cbd5e1', marginBottom: 6 }}>
-              Internal Operator ID / Badge Email
+              Admin Email
             </label>
             <input 
               id="admin-operator-id"
@@ -214,13 +217,13 @@ export default function AdminSecurityGate({
           {/* Master Security Key */}
           <div style={{ marginBottom: 14 }}>
             <label htmlFor="admin-passkey" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#cbd5e1', marginBottom: 6 }}>
-              Master Security Passphrase
+              Admin Password (Supabase Auth)
             </label>
             <div style={{ position: 'relative' }}>
               <input 
                 id="admin-passkey"
                 type={showPasskey ? 'text' : 'password'}
-                placeholder="Enter staff security key (e.g. FINDCO-ADMIN-2026)"
+                placeholder="Enter your Supabase admin password"
                 value={passkey}
                 onChange={e => setPasskey(e.target.value)}
                 required
@@ -255,33 +258,7 @@ export default function AdminSecurityGate({
             </div>
           </div>
 
-          {/* Simulated 2FA TOTP Token */}
-          <div style={{ marginBottom: 20 }}>
-            <label htmlFor="admin-totp" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 600, color: '#cbd5e1', marginBottom: 6 }}>
-              <span>Hardware 2FA / Authenticator Token</span>
-              <span style={{ color: '#38bdf8', fontSize: '0.72rem' }}>6-Digit OTP</span>
-            </label>
-            <input 
-              id="admin-totp"
-              type="text"
-              maxLength={6}
-              placeholder="e.g. 748291"
-              value={totp}
-              onChange={e => setTotp(e.target.value.replace(/\D/g, ''))}
-              style={{
-                width: '100%',
-                padding: '11px 14px',
-                background: 'rgba(0, 0, 0, 0.4)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: 'var(--radius-md)',
-                color: '#38bdf8',
-                fontSize: '1rem',
-                fontWeight: 700,
-                letterSpacing: '0.2em',
-                textAlign: 'center'
-              }}
-            />
-          </div>
+          <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 20 }}>Admin access requires a Supabase account with role = admin. Enable MFA in Supabase Auth for admin accounts.</p>
 
           <button
             type="submit"
