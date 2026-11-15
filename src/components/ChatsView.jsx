@@ -573,10 +573,22 @@ export default function ChatsView({
 
   const handleCreateOffer = (e) => {
     e.preventDefault();
-    if (!offerAmount || isNaN(offerAmount)) {
-      if (onShowToast) onShowToast('Please enter a valid offer amount.', 'error');
+    const amount = Number(offerAmount);
+    const hours = Number(offerHours);
+
+    if (isNaN(amount) || !Number.isFinite(amount) || amount < 100 || amount > 100000) {
+      if (onShowToast) onShowToast('Offer amount must be between ₹100 and ₹1,00,000.', 'error');
       return;
     }
+    if (isNaN(hours) || !Number.isFinite(hours) || hours < 1 || hours > 12) {
+      if (onShowToast) onShowToast('Session duration must be between 1 and 12 hours.', 'error');
+      return;
+    }
+    if (!offerVenue || !offerVenue.trim()) {
+      if (onShowToast) onShowToast('Please provide a valid verified public venue.', 'error');
+      return;
+    }
+    const cleanTitle = (offerTitle && offerTitle.trim()) || 'Companionship Session';
 
     const offerMessage = {
       id: `m_${Date.now()}`,
@@ -584,11 +596,11 @@ export default function ChatsView({
       isOffer: true,
       offerData: {
         offerId: `off_${Date.now()}`,
-        title: offerTitle || 'Companionship Session',
-        amount: Number(offerAmount),
+        title: cleanTitle,
+        amount: Math.round(amount),
         billingType: offerBillingType,
-        hours: Number(offerHours) || 2,
-        venue: offerVenue,
+        hours: Math.round(hours),
+        venue: offerVenue.trim(),
         dateTime: offerDateTime,
         terms: offerTerms,
         status: 'pending'
@@ -609,7 +621,7 @@ export default function ChatsView({
     }));
 
     setShowOfferModal(false);
-    if (onShowToast) onShowToast(`Official quote of ₹${offerAmount} sent to ${activeChat.participant.name}!`, 'success');
+    if (onShowToast) onShowToast(`Official quote of ₹${Math.round(amount)} sent to ${activeChat?.participant?.name || 'companion'}!`, 'success');
   };
 
   const handleAcceptOffer = (offerId) => {
@@ -1417,50 +1429,64 @@ export default function ChatsView({
 
                         {/* Pending State Action Buttons */}
                         {isPending && (
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <button
-                              type="button"
-                              disabled={isAcceptingOffer}
-                              onClick={() => handleAcceptOffer(off.offerId)}
-                              style={{
-                                flex: 1,
-                                padding: '11px',
-                                borderRadius: 10,
-                                background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
-                                color: '#ffffff',
-                                fontSize: '0.86rem',
-                                fontWeight: 700,
-                                border: 'none',
-                                cursor: isAcceptingOffer ? 'not-allowed' : 'pointer',
-                                opacity: isAcceptingOffer ? 0.7 : 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 6,
-                                boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)'
-                              }}
-                            >
-                              <Lock size={15} />
-                              <span>{isAcceptingOffer ? 'Securing Escrow...' : 'Accept & Lock Escrow'}</span>
-                            </button>
+                          isMe ? (
+                            <div style={{
+                              textAlign: 'center',
+                              fontSize: '0.8rem',
+                              color: '#64748b',
+                              padding: '10px 12px',
+                              background: '#f8fafc',
+                              borderRadius: 8,
+                              border: '1px solid #e2e8f0'
+                            }}>
+                              Official quote sent. Awaiting partner review and escrow lock.
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 10 }}>
+                              <button
+                                type="button"
+                                disabled={isAcceptingOffer}
+                                onClick={() => handleAcceptOffer(off.offerId)}
+                                style={{
+                                  flex: 1,
+                                  padding: '11px',
+                                  borderRadius: 10,
+                                  background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+                                  color: '#ffffff',
+                                  fontSize: '0.86rem',
+                                  fontWeight: 700,
+                                  border: 'none',
+                                  cursor: isAcceptingOffer ? 'not-allowed' : 'pointer',
+                                  opacity: isAcceptingOffer ? 0.7 : 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 6,
+                                  boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)'
+                                }}
+                              >
+                                <Lock size={15} />
+                                <span>{isAcceptingOffer ? 'Securing Escrow...' : 'Accept & Lock Escrow'}</span>
+                              </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleDeclineOffer(off.offerId)}
-                              style={{
-                                padding: '11px 16px',
-                                borderRadius: 10,
-                                background: '#f8fafc',
-                                border: '1px solid #e2e8f0',
-                                color: '#64748b',
-                                fontSize: '0.84rem',
-                                fontWeight: 600,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Decline
-                            </button>
-                          </div>
+                              <button
+                                type="button"
+                                onClick={() => handleDeclineOffer(off.offerId)}
+                                style={{
+                                  padding: '11px 16px',
+                                  borderRadius: 10,
+                                  background: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  color: '#64748b',
+                                  fontSize: '0.84rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          )
                         )}
 
                         {/* Accepted State: Verified Pass Voucher */}
@@ -2227,6 +2253,8 @@ export default function ChatsView({
                   </label>
                   <input 
                     type="number"
+                    min="100"
+                    max="100000"
                     value={offerAmount}
                     onChange={e => setOfferAmount(e.target.value)}
                     required
@@ -2645,6 +2673,16 @@ export default function ChatsView({
         isOpen={isSosModalOpen}
         onClose={() => setIsSosModalOpen(false)}
         currentUser={{ name: role === 'buddy' ? 'Companion' : 'Client' }}
+        activeBooking={{
+          partnerName: activeChat?.participant?.name || 'Assigned Companion',
+          venue: activeChat?.participant?.area 
+            ? `${activeChat.participant.area}, ${activeChat.participant.city || 'Bengaluru'}`
+            : 'Indiranagar, Bengaluru'
+        }}
+        safetyEnclave={{
+          emergencyContactName: 'Safety Guardian',
+          emergencyContactPhone: '+919876543210'
+        }}
         onShowToast={onShowToast}
       />
 

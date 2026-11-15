@@ -31,7 +31,15 @@ export default function DiscoverView({
   const filteredCompanions = useMemo(() => {
     return companions.filter(comp => {
       if (cityFilter && cityFilter !== 'All Cities' && comp.city !== cityFilter) return false;
-      if (selectedCategory !== 'All Categories' && !comp.services.includes(selectedCategory)) return false;
+      if (selectedCategory !== 'All Categories') {
+        const normCat = selectedCategory.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const hasMatch = Array.isArray(comp.services) && comp.services.some(s => {
+          const normService = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return normService.includes(normCat) || normCat.includes(normService) ||
+            ((normCat.includes('coffee') || normCat.includes('cafe')) && (normService.includes('cafe') || normService.includes('coffee')));
+        });
+        if (!hasMatch) return false;
+      }
       if (comp.hourlyRate > maxHourlyRate) return false;
       if (starOnly && !comp.isStar) return false;
       if (searchQuery.trim()) {
@@ -228,16 +236,16 @@ export default function DiscoverView({
           </button>
           <button
             type="button"
-            onClick={() => setSelectedCategory(selectedCategory === 'Specialty Coffee & Talks' ? 'All Categories' : 'Specialty Coffee & Talks')}
+            onClick={() => setSelectedCategory(selectedCategory === 'Cafe & Dining Buddy' ? 'All Categories' : 'Cafe & Dining Buddy')}
             style={{
               padding: '6px 14px',
               borderRadius: 'var(--radius-full)',
               fontSize: '0.8rem',
               fontWeight: 600,
               cursor: 'pointer',
-              border: selectedCategory === 'Specialty Coffee & Talks' ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
-              background: selectedCategory === 'Specialty Coffee & Talks' ? 'var(--color-primary-bg)' : 'var(--bg-card)',
-              color: selectedCategory === 'Specialty Coffee & Talks' ? 'var(--color-primary-text)' : 'var(--text-secondary)',
+              border: (selectedCategory === 'Cafe & Dining Buddy' || selectedCategory.toLowerCase().includes('coffee') || selectedCategory.toLowerCase().includes('cafe')) ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+              background: (selectedCategory === 'Cafe & Dining Buddy' || selectedCategory.toLowerCase().includes('coffee') || selectedCategory.toLowerCase().includes('cafe')) ? 'var(--color-primary-bg)' : 'var(--bg-card)',
+              color: (selectedCategory === 'Cafe & Dining Buddy' || selectedCategory.toLowerCase().includes('coffee') || selectedCategory.toLowerCase().includes('cafe')) ? 'var(--color-primary-text)' : 'var(--text-secondary)',
               transition: 'all 0.15s ease'
             }}
           >

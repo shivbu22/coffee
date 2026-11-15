@@ -16,10 +16,18 @@ export default function EmergencySosModal({
   const [isLoggedToCloud, setIsLoggedToCloud] = useState(false);
 
   const guardianName = safetyEnclave?.emergencyContactName || 'Guardian';
-  const rawPhone = safetyEnclave?.emergencyContactPhone || '112';
-  const cleanGuardianPhone = rawPhone.replace(/\D/g, '') || '112';
+  const rawPhone = safetyEnclave?.emergencyContactPhone || '';
+  const cleanGuardianPhone = rawPhone.replace(/\D/g, '');
+  const hasValidPhone = cleanGuardianPhone && cleanGuardianPhone.length >= 10;
   const venue = activeBooking?.venue || 'Active Meetup Location';
   const companionName = activeBooking?.partnerName || 'Assigned Companion';
+
+  const whatsappHref = hasValidPhone 
+    ? `https://wa.me/${cleanGuardianPhone}?text=${sosBody}`
+    : `https://api.whatsapp.com/send?text=${sosBody}`;
+  const smsHref = hasValidPhone
+    ? `sms:${cleanGuardianPhone}?body=${sosBody}`
+    : `sms:?body=${sosBody}`;
 
   // Automatically request GPS position when modal opens
   useEffect(() => {
@@ -49,10 +57,17 @@ export default function EmergencySosModal({
     // Lock body scroll while emergency modal is active
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -262,7 +277,7 @@ export default function EmergencySosModal({
 
           {/* 3. Guardian WhatsApp Dispatch with GPS coordinates */}
           <a
-            href={`https://wa.me/${cleanGuardianPhone}?text=${sosBody}`}
+            href={whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => {
@@ -293,7 +308,7 @@ export default function EmergencySosModal({
 
           {/* 4. Native Emergency SMS fallback */}
           <a
-            href={`sms:${cleanGuardianPhone}?body=${sosBody}`}
+            href={smsHref}
             onClick={() => {
               handleCloudIncidentLog();
               if (onShowToast) onShowToast(`SOS SMS prepared for ${guardianName}!`, 'info');

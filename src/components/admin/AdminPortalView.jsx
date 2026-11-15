@@ -301,6 +301,43 @@ export default function AdminPortalView({
     onShowToast('Flagged activity request removed from public feed.', 'info');
   };
 
+  // Live Escrow Payout Queue & Dispute Resolution State
+  const [escrowPayouts, setEscrowPayouts] = useState([
+    { id: 'tx_1', companion: 'Arjun Mehta', amount: 2800, client: 'Vikram S.', status: 'Pending Completion Review', time: 'Today 5:00 PM' },
+    { id: 'tx_2', companion: 'Priya Sharma', amount: 1800, client: 'Riya K.', status: 'Settled & Paid', time: 'Today 3:20 PM' },
+    { id: 'tx_3', companion: 'Ananya Sen', amount: 2500, client: 'Aman D.', status: 'Settled & Paid', time: 'Yesterday' }
+  ]);
+
+  const handleAdminForceRelease = (txId, companion, amount) => {
+    if (!window.confirm(`FORCE RELEASE: Authorize immediate release of ₹${amount} to companion ${companion}?`)) return;
+    setEscrowPayouts(prev => prev.map(t => t.id === txId ? { ...t, status: 'Force-Released by Trust & Safety' } : t));
+    const newLog = {
+      id: `log_${Date.now()}`,
+      time: 'Just now',
+      operator: adminAuth?.operatorName || 'Admin Operator',
+      action: 'ESCROW_FORCE_RELEASE',
+      target: `Tx #${txId} (${companion} - ₹${amount})`,
+      details: 'Administrative override: Escrow released by Trust & Safety desk.'
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+    onShowToast(`Administrative override: Escrow of ₹${amount} force-released to ${companion}.`, 'success');
+  };
+
+  const handleAdminForceRefund = (txId, client, amount) => {
+    if (!window.confirm(`FORCE REFUND: Reverse ₹${amount} escrow back to client ${client}?`)) return;
+    setEscrowPayouts(prev => prev.map(t => t.id === txId ? { ...t, status: 'Refunded to Client' } : t));
+    const newLog = {
+      id: `log_${Date.now()}`,
+      time: 'Just now',
+      operator: adminAuth?.operatorName || 'Admin Operator',
+      action: 'ESCROW_FORCE_REFUND',
+      target: `Tx #${txId} (${client} - ₹${amount})`,
+      details: 'Administrative refund issued due to session dispute / cancellation.'
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+    onShowToast(`Escrow of ₹${amount} refunded to ${client}.`, 'info');
+  };
+
   const filteredKyc = kycRequests.filter(k => {
     if (!vaultSearch.trim()) return true;
     const q = vaultSearch.toLowerCase();
@@ -1062,36 +1099,75 @@ export default function AdminPortalView({
               </div>
             </div>
 
-            {/* Recent Settlements */}
+            {/* Recent Settlements & Escrow Dispute Resolution */}
             <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: 14 }}>Live Escrow Payout Queue</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Live Escrow Payout & Dispute Resolution Queue</h3>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Trust & Safety Authority</span>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { id: 'tx_1', companion: 'Arjun Mehta', amount: 2800, client: 'Vikram S.', status: 'Pending Completion Review', time: 'Today 5:00 PM' },
-                  { id: 'tx_2', companion: 'Priya Sharma', amount: 1800, client: 'Riya K.', status: 'Settled & Paid', time: 'Today 3:20 PM' },
-                  { id: 'tx_3', companion: 'Ananya Sen', amount: 2500, client: 'Aman D.', status: 'Settled & Paid', time: 'Yesterday' }
-                ].map(tx => (
+                {escrowPayouts.map(tx => (
                   <div 
                     key={tx.id}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '12px 16px',
+                      padding: '14px 16px',
                       background: 'var(--bg-elevated)',
                       borderRadius: 'var(--radius-md)',
-                      fontSize: '0.84rem'
+                      fontSize: '0.84rem',
+                      flexWrap: 'wrap',
+                      gap: 12
                     }}
                   >
                     <div>
                       <strong>{tx.companion}</strong> ← {tx.client}
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{tx.time}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <strong style={{ color: 'var(--color-gold)' }}>₹{tx.amount}</strong>
-                      <div style={{ fontSize: '0.72rem', color: tx.status.includes('Settled') ? 'var(--color-emerald)' : 'var(--color-primary-text)' }}>
-                        {tx.status}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <strong style={{ color: 'var(--color-gold)' }}>₹{tx.amount}</strong>
+                        <div style={{ fontSize: '0.72rem', color: tx.status.includes('Settled') || tx.status.includes('Released') ? 'var(--color-emerald)' : 'var(--color-primary-text)' }}>
+                          {tx.status}
+                        </div>
                       </div>
+                      {!tx.status.includes('Settled') && !tx.status.includes('Released') && !tx.status.includes('Refunded') && (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminForceRelease(tx.id, tx.companion, tx.amount)}
+                            style={{
+                              background: '#059669',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '5px 10px',
+                              borderRadius: 6,
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Force Release
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminForceRefund(tx.id, tx.client, tx.amount)}
+                            style={{
+                              background: '#e11d48',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '5px 10px',
+                              borderRadius: 6,
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Force Refund
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

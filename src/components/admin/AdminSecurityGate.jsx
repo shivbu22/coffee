@@ -13,6 +13,22 @@ import {
   EyeOff
 } from 'lucide-react';
 
+const LOCKOUT_KEY = 'findco_admin_gate_lockout';
+
+const getInitialAttempts = () => {
+  try {
+    const raw = sessionStorage.getItem(LOCKOUT_KEY);
+    if (!raw) return 5;
+    const parsed = JSON.parse(raw);
+    if (parsed.lockedUntil && Date.now() < parsed.lockedUntil) {
+      return 0;
+    }
+    return typeof parsed.attempts === 'number' ? parsed.attempts : 5;
+  } catch {
+    return 5;
+  }
+};
+
 export default function AdminSecurityGate({ 
   onAuthenticate, 
   onExitToConsumer,
@@ -24,7 +40,7 @@ export default function AdminSecurityGate({
   const [showPasskey, setShowPasskey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [attemptsLeft, setAttemptsLeft] = useState(5);
+  const [attemptsLeft, setAttemptsLeft] = useState(getInitialAttempts);
 
   const handleLogin = async (e) => {
     e?.preventDefault();
@@ -38,7 +54,7 @@ export default function AdminSecurityGate({
       return;
     }
     if (attemptsLeft <= 0) {
-      setErrorMsg('Security lockout triggered: too many failed attempts. Reload to try again.');
+      setErrorMsg('Security lockout triggered: repeated failed attempts. Console locked for 15 minutes.');
       return;
     }
     setIsLoading(true);
@@ -53,6 +69,7 @@ export default function AdminSecurityGate({
         throw new Error('This account is not an admin. Access requires users.role = admin in the Cloudflare D1 database.');
       }
       setIsLoading(false);
+      try { sessionStorage.removeItem(LOCKOUT_KEY); } catch {}
       onShowToast('Identity authenticated. Welcome to FindCo Operations Console.', 'success');
       onAuthenticate({
         operatorName: profile?.full_name || data.user.email,
@@ -63,9 +80,20 @@ export default function AdminSecurityGate({
       });
     } catch (err) {
       setIsLoading(false);
-      const nextAttempts = attemptsLeft - 1;
+      const nextAttempts = Math.max(0, attemptsLeft - 1);
       setAttemptsLeft(nextAttempts);
-      setErrorMsg(err.message || 'Admin sign-in failed.');
+      const isLocked = nextAttempts <= 0;
+      try {
+        sessionStorage.setItem(LOCKOUT_KEY, JSON.stringify({
+          attempts: nextAttempts,
+          lockedUntil: isLocked ? Date.now() + 15 * 60 * 1000 : 0
+        }));
+      } catch {}
+      if (isLocked) {
+        setErrorMsg('Security lockout triggered: 5 failed attempts. Console locked for 15 minutes.');
+      } else {
+        setErrorMsg(`${err.message || 'Admin sign-in failed.'} (${nextAttempts} attempts remaining)`);
+      }
     }
   };
 

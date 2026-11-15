@@ -868,7 +868,13 @@ export default function LandingPage({
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
-                      onClick={() => setActiveTab('chats')}
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          if (onOpenAuth) onOpenAuth('client', 'chats');
+                          return;
+                        }
+                        setActiveTab('chats');
+                      }}
                       className="btn-primary"
                       style={{ flex: 1, padding: '10px', fontSize: '0.88rem' }}
                     >

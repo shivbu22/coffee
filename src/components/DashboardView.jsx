@@ -75,9 +75,11 @@ export default function DashboardView({
   const [activePinBooking, setActivePinBooking] = useState(null);
   const [inputHandshakePin, setInputHandshakePin] = useState('');
   const [pinError, setPinError] = useState('');
+  const [pinAttemptsLeft, setPinAttemptsLeft] = useState(3);
+  const [isPinLocked, setIsPinLocked] = useState(false);
 
   const handleCopyPin = (pin) => {
-    navigator.clipboard?.writeText(pin);
+    navigator.clipboard?.writeText(pin).catch(() => {});
     setCopiedPin(true);
     if (onShowToast) onShowToast(`Handshake PIN ${pin} copied to clipboard!`, 'success');
     setTimeout(() => setCopiedPin(false), 2500);
@@ -87,20 +89,39 @@ export default function DashboardView({
     setActivePinBooking(booking);
     setInputHandshakePin('');
     setPinError('');
+    setPinAttemptsLeft(3);
+    setIsPinLocked(false);
     setIsPinModalOpen(true);
   };
 
   const handleVerifyHandshakePin = (e) => {
     e.preventDefault();
-    if (!activePinBooking) return;
+    if (!activePinBooking || isPinLocked) return;
     const entered = inputHandshakePin.trim();
-    if (entered.length !== 4) {
-      setPinError('Please enter the 4-digit PIN provided by your client.');
+    if (!/^\d{4}$/.test(entered)) {
+      setPinError('Please enter a valid 4-digit numeric PIN.');
       return;
     }
 
-    if (activePinBooking.handshakePin && entered !== activePinBooking.handshakePin) {
-      setPinError('Incorrect Handshake PIN. Please verify the 4 digits with your client.');
+    if (!activePinBooking.handshakePin) {
+      setPinError('Security error: Booking lacks an active escrow handshake pin. Contact support.');
+      return;
+    }
+
+    if (entered !== String(activePinBooking.handshakePin).trim()) {
+      const remaining = pinAttemptsLeft - 1;
+      setPinAttemptsLeft(remaining);
+      if (remaining <= 0) {
+        setIsPinLocked(true);
+        setPinError('Too many incorrect attempts. Escrow verification locked for 15 minutes.');
+      } else {
+        setPinError(`Incorrect Handshake PIN. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`);
+      }
+      return;
+    }
+
+    if (activePinBooking.escrowStatus === 'Escrow Released') {
+      setPinError('Escrow for this booking has already been released.');
       return;
     }
 
@@ -179,12 +200,20 @@ export default function DashboardView({
     e.preventDefault();
     if (isSubmittingWithdrawal) return;
 
-    const numAmount = parseInt(withdrawAmount, 10);
-    if (isNaN(numAmount) || numAmount < 100) {
+    const sanitized = (withdrawAmount || '').toString().trim();
+    if (!/^\d+$/.test(sanitized)) {
+      if (onShowToast) onShowToast("Please enter a valid whole rupee amount.", "error");
+      return;
+    }
+
+    const numAmount = Number(sanitized);
+    const currentBalance = Number(dashboardData?.wallet?.availableBalance ?? 0);
+
+    if (!Number.isSafeInteger(numAmount) || numAmount < 100) {
       if (onShowToast) onShowToast("Minimum withdrawal is ₹100.", "error");
       return;
     }
-    if (numAmount > dashboardData.wallet.availableBalance) {
+    if (numAmount > currentBalance) {
       if (onShowToast) onShowToast("Amount exceeds available balance.", "error");
       return;
     }
@@ -195,7 +224,7 @@ export default function DashboardView({
       const newTx = {
         id: `tx_${Date.now()}`,
         date: 'Just now',
-        title: `IMPS Instant Transfer to ${dashboardData.wallet.upiId}`,
+        title: `IMPS Instant Transfer to ${dashboardData?.wallet?.upiId || 'UPI'}`,
         amount: -numAmount,
         type: 'debit',
         status: `Settled via IMPS (Ref: ${Math.floor(1000000 + Math.random() * 9000000)})`
@@ -205,15 +234,15 @@ export default function DashboardView({
         ...prev,
         wallet: {
           ...prev.wallet,
-          availableBalance: prev.wallet.availableBalance - numAmount,
+          availableBalance: Math.max(0, (Number(prev.wallet?.availableBalance) || 0) - numAmount),
           lastSettlementDate: 'Just now',
-          transactions: [newTx, ...prev.wallet.transactions]
+          transactions: [newTx, ...(prev.wallet?.transactions || [])]
         }
       }));
 
       setIsSubmittingWithdrawal(false);
       setIsWithdrawModalOpen(false);
-      if (onShowToast) onShowToast(`₹${numAmount.toLocaleString('en-IN')} transferred to ${dashboardData.wallet.upiId}! (Demo Mode)`, "success");
+      if (onShowToast) onShowToast(`₹${numAmount.toLocaleString('en-IN')} transferred to ${dashboardData?.wallet?.upiId || 'UPI'}! (Demo Mode)`, "success");
     }, 600);
   };
 

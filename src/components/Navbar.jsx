@@ -41,15 +41,24 @@ export default function Navbar({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileMenuRef = useRef(null);
 
-  // Close profile dropdown when clicking outside
+  // Close profile dropdown when clicking outside or pressing Escape
   useEffect(() => {
     function handleClickOutside(event) {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
         setIsProfileOpen(false);
       }
     }
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false);
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const userName = currentUser?.name || buddyProfile?.name || 'Priya Sharma';
@@ -609,7 +618,7 @@ export default function Navbar({
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveTab('profile');
+                      setActiveTab('vault');
                       setIsProfileOpen(false);
                     }}
                     style={{

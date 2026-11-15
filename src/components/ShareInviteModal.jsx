@@ -1,8 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Share2, MessageCircle, Gift, Sparkles, QrCode } from 'lucide-react';
 
 export default function ShareInviteModal({ isOpen, onClose, userProfile, onShowToast }) {
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -56,6 +65,9 @@ export default function ShareInviteModal({ isOpen, onClose, userProfile, onShowT
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-invite-title"
         style={{
           background: 'var(--bg-card, #ffffff)',
           color: 'var(--text-main, #0f172a)',
@@ -95,7 +107,7 @@ export default function ShareInviteModal({ isOpen, onClose, userProfile, onShowT
               <Gift size={20} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
+              <h2 id="share-invite-title" style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
                 Invite Friends to FindCo
               </h2>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted, #64748b)', margin: 0 }}>

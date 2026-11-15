@@ -401,7 +401,7 @@ export default function Footer({
             <li>
               <button 
                 type="button" 
-                onClick={() => onOpenAuth ? onOpenAuth('buddy') : handleNavClick('profile')}
+                onClick={() => isLoggedIn ? handleNavClick('profile') : (onOpenAuth ? onOpenAuth('buddy') : handleNavClick('profile'))}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -445,7 +445,7 @@ export default function Footer({
             <li>
               <button 
                 type="button" 
-                onClick={() => onOpenAuth ? onOpenAuth('buddy') : handleNavClick('profile')}
+                onClick={() => handleNavClick('help')}
                 style={{
                   background: 'none',
                   border: 'none',

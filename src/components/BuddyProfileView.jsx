@@ -135,7 +135,15 @@ export default function BuddyProfileView({
   };
 
   const handleRateChange = (serviceName, newRate) => {
-    const numericRate = Math.max(100, Math.min(5000, Number(newRate) || 0));
+    if (newRate === '') {
+      setFormData(prev => ({
+        ...prev,
+        services: prev.services.map(s => s.name === serviceName ? { ...s, rate: '' } : s)
+      }));
+      return;
+    }
+    const num = Number(newRate);
+    const numericRate = isNaN(num) ? 100 : Math.max(0, Math.min(5000, num));
     setFormData(prev => ({
       ...prev,
       services: prev.services.map(s => s.name === serviceName ? { ...s, rate: numericRate } : s)

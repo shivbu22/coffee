@@ -165,8 +165,9 @@ export default function BuddyFeedView({
 
   const handleSubmitProposal = (e) => {
     e.preventDefault();
-    if (!customPrice || isNaN(customPrice) || Number(customPrice) <= 0) {
-      onShowToast('Please enter a valid rate.', 'error');
+    const priceNum = Number(customPrice);
+    if (!customPrice || isNaN(priceNum) || priceNum < 100 || priceNum > 50000) {
+      onShowToast('Please enter a valid rate between ₹100 and ₹50,000.', 'error');
       return;
     }
 
@@ -205,27 +206,27 @@ export default function BuddyFeedView({
     if (selectedCategory !== 'all') {
       const catObj = QUICK_CATEGORIES.find(c => c.id === selectedCategory);
       if (catObj) {
-        result = result.filter(r => 
-          r.serviceCategory.toLowerCase().includes(catObj.label.toLowerCase().split(' ')[0]) ||
-          r.serviceCategory.toLowerCase().includes(selectedCategory)
-        );
+        result = result.filter(r => {
+          const cat = (r.serviceCategory || r.activity || '').toLowerCase();
+          return cat.includes(catObj.label.toLowerCase().split(' ')[0]) || cat.includes(selectedCategory.toLowerCase());
+        });
       }
     }
 
     // Filter by City
     if (selectedCity !== 'All Cities') {
-      result = result.filter(r => r.authorCity.toLowerCase() === selectedCity.toLowerCase());
+      result = result.filter(r => ((r.authorCity || r.city || '').toLowerCase() === selectedCity.toLowerCase()));
     }
 
     // Filter by Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(r => 
-        r.title.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q) ||
-        r.authorName.toLowerCase().includes(q) ||
-        r.serviceCategory.toLowerCase().includes(q) ||
-        r.authorCity.toLowerCase().includes(q)
+        (r.title || '').toLowerCase().includes(q) ||
+        (r.description || '').toLowerCase().includes(q) ||
+        (r.authorName || '').toLowerCase().includes(q) ||
+        (r.serviceCategory || r.activity || '').toLowerCase().includes(q) ||
+        (r.authorCity || r.city || '').toLowerCase().includes(q)
       );
     }
 

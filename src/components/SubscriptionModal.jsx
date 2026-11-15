@@ -52,7 +52,7 @@ export default function SubscriptionModal({
   if (!isOpen) return null;
 
   const activePlan = SUBSCRIPTION_PLANS.find(p => p.tier === selectedTier || (selectedTier === 'star' && p.tier === 'star_member')) || SUBSCRIPTION_PLANS[2];
-  const finalPrice = Math.max(1, Math.round(activePlan.price * (1 - appliedDiscount / 100)));
+  const finalPrice = appliedDiscount >= 100 ? 0 : Math.max(1, Math.round(activePlan.price * (1 - appliedDiscount / 100)));
 
   const handleApplyCoupon = (e) => {
     e.preventDefault();
@@ -571,7 +571,7 @@ export default function SubscriptionModal({
                   boxShadow: '0 4px 16px rgba(225, 29, 72, 0.35)'
                 }}
               >
-                Proceed to Pay ₹{finalPrice}
+                {finalPrice === 0 ? 'Activate Free VIP Access' : `Proceed to Pay ₹${finalPrice}`}
               </button>
             </div>
           </div>
@@ -640,7 +640,7 @@ export default function SubscriptionModal({
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Total Payable:</span>
                 <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#e11d48' }} className="tabular-nums">
-                  ₹{finalPrice}
+                  {finalPrice === 0 ? 'FREE (100% OFF)' : `₹${finalPrice}`}
                 </span>
               </div>
             </div>
@@ -664,7 +664,7 @@ export default function SubscriptionModal({
                   boxShadow: '0 6px 20px rgba(225, 29, 72, 0.35)'
                 }}
               >
-                {isProcessingRazorpay ? 'Verifying with Bank...' : `Pay ₹${finalPrice} via UPI / Card`}
+                {isProcessingRazorpay ? 'Verifying with Bank...' : finalPrice === 0 ? 'Activate Free VIP Access' : `Pay ₹${finalPrice} via UPI / Card`}
               </button>
 
               <button

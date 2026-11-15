@@ -10,6 +10,15 @@ export default function LegalModal({ isOpen, onClose, initialTab = 'terms' }) {
     }
   }, [initialTab, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -28,6 +37,9 @@ export default function LegalModal({ isOpen, onClose, initialTab = 'terms' }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="legal-modal-title"
         style={{
           background: 'var(--bg-card, #ffffff)',
           color: 'var(--text-main, #0f172a)',
@@ -70,7 +82,7 @@ export default function LegalModal({ isOpen, onClose, initialTab = 'terms' }) {
               <Scale size={20} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
+              <h2 id="legal-modal-title" style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
                 FindCo Legal & Compliance Hub
               </h2>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted, #64748b)', margin: 0 }}>
@@ -79,6 +91,8 @@ export default function LegalModal({ isOpen, onClose, initialTab = 'terms' }) {
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Close legal modal"
             onClick={onClose}
             style={{
               background: 'none',

@@ -18,6 +18,41 @@ import {
   TrendingUp
 } from 'lucide-react';
 
+// Verhoeff algorithm for UIDAI Aadhaar checksum validation
+const verhoeffD = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+  [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+  [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+  [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+  [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+  [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+  [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+  [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+  [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+];
+const verhoeffP = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+  [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+  [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+  [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+  [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+  [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+  [7, 0, 4, 6, 9, 1, 3, 2, 5, 8]
+];
+
+function validateAadhaarVerhoeff(aadhaar) {
+  const clean = (aadhaar || '').replace(/\D/g, '');
+  if (clean.length !== 12 || clean[0] === '0' || clean[0] === '1') return false;
+  let c = 0;
+  const inverted = clean.split('').reverse().map(Number);
+  for (let i = 0; i < inverted.length; i++) {
+    c = verhoeffD[c][verhoeffP[i % 8][inverted[i]]];
+  }
+  return c === 0;
+}
+
 export default function IdentityVaultView({ 
   kycRequests, 
   setKycRequests, 
@@ -40,8 +75,9 @@ export default function IdentityVaultView({
       return;
     }
 
-    if (aadhaarNumber.replace(/[^0-9]/g, '').length !== 12) {
-      onShowToast('Please enter a valid 12-digit Aadhaar Number.', 'error');
+    const cleanAadhaar = aadhaarNumber.replace(/[^0-9]/g, '');
+    if (!validateAadhaarVerhoeff(cleanAadhaar)) {
+      onShowToast('Invalid Aadhaar number. Please enter a valid 12-digit UIDAI checksum-verified number.', 'error');
       return;
     }
 
@@ -51,7 +87,7 @@ export default function IdentityVaultView({
       email: 'user@findco.in',
       phone: phone,
       city: city,
-      aadhaarNumber: `XXXX-XXXX-${aadhaarNumber.slice(-4)}`,
+      aadhaarNumber: `XXXX-XXXX-${cleanAadhaar.slice(-4)}`,
       frontImage: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=500&h=300&fit=crop',
       backImage: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=500&h=300&fit=crop',
       submittedAt: 'Just now',
@@ -72,10 +108,20 @@ export default function IdentityVaultView({
     onShowToast('Applicant rejected. Notice sent for re-upload.', 'info');
   };
 
+  const handlePurgeIdentityData = (id) => {
+    if (!window.confirm("DPDP ACT COMPLIANCE (Section 12): Are you sure you want to exercise your statutory Right to Erasure? This permanently removes your government identity records, photo ID, and revokes your verification badge immediately.")) {
+      return;
+    }
+    setKycRequests(prev => prev.filter(k => k.id !== id));
+    if (onShowToast) onShowToast("Right to Erasure fulfilled: Personal identity records permanently purged from vault.", "info");
+  };
+
   const filteredVault = kycRequests.filter(k => {
     if (!vaultSearch.trim()) return true;
     const q = vaultSearch.toLowerCase();
-    return k.userName.toLowerCase().includes(q) || k.city.toLowerCase().includes(q) || k.aadhaarNumber.includes(q);
+    return (k.userName || '').toLowerCase().includes(q) || 
+           (k.city || '').toLowerCase().includes(q) || 
+           (k.aadhaarNumber || '').includes(q);
   });
 
   return (
@@ -338,6 +384,33 @@ export default function IdentityVaultView({
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 Support Helpline: <strong style={{ color: 'var(--text-main)' }}>safety@findco.in</strong>
               </div>
+            </div>
+
+            {/* DPDP Act Right to Erasure statutory compliance */}
+            <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(225, 29, 72, 0.25)' }}>
+              <h4 style={{ fontSize: '0.98rem', marginBottom: 8, color: '#e11d48', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ShieldCheck size={16} /> DPDP Act Section 12: Right to Erasure
+              </h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, marginBottom: 12 }}>
+                Under India's Digital Personal Data Protection Act, you hold the right to revoke consent and permanently purge your government identity records at any time.
+              </p>
+              <button
+                type="button"
+                onClick={() => handlePurgeIdentityData('kyc_current')}
+                style={{
+                  background: 'rgba(225, 29, 72, 0.08)',
+                  border: '1px solid rgba(225, 29, 72, 0.3)',
+                  color: '#e11d48',
+                  padding: '9px 14px',
+                  borderRadius: 8,
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                Exercise Right to Erasure (Purge Vault Dossier)
+              </button>
             </div>
           </div>
 

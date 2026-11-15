@@ -61,6 +61,7 @@ export default function PostRequestModal({
   const [city, setCity] = useState('Bengaluru');
   const [postedAs, setPostedAs] = useState(role === 'buddy' ? 'buddy' : 'client');
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Accessibility: Close on Escape key press
   useEffect(() => {
@@ -95,8 +96,10 @@ export default function PostRequestModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!validate()) return;
 
+    setIsSubmitting(true);
     const newReq = {
       id: `req_${Date.now()}`,
       authorName: 'You (Current User)',
@@ -244,9 +247,13 @@ export default function PostRequestModal({
             <input 
               id="post-title"
               type="text"
+              maxLength={120}
               placeholder="e.g. Looking for a roadtrip companion for weekend drive to Nandi Hills"
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={e => {
+                setTitle(e.target.value);
+                if (errors.title) setErrors(prev => ({ ...prev, title: null }));
+              }}
               style={{
                 width: '100%',
                 padding: '11px 14px',
@@ -283,7 +290,10 @@ export default function PostRequestModal({
               rows={4}
               placeholder="Describe what you plan to do, preferred timing, meeting location, and what kind of companionship style you prefer. Keep it safe, public, and platonic."
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={e => {
+                setDescription(e.target.value);
+                if (errors.description) setErrors(prev => ({ ...prev, description: null }));
+              }}
               style={{
                 width: '100%',
                 padding: '12px 14px',
@@ -394,10 +404,15 @@ export default function PostRequestModal({
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="btn-primary"
-              style={{ flex: 1.5 }}
+              style={{
+                flex: 1.5,
+                opacity: isSubmitting ? 0.7 : 1,
+                cursor: isSubmitting ? 'not-allowed' : 'pointer'
+              }}
             >
-              Publish to Activity Feed
+              {isSubmitting ? 'Publishing...' : 'Publish to Activity Feed'}
             </button>
           </div>
 
