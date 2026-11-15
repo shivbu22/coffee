@@ -26,3 +26,4 @@ export async function onRequestPost({ request, env }) {
 
   return json({ success: true, read_at: now });
 }
+

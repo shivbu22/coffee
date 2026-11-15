@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  PlusCircle, 
-  AlertCircle 
+import {
+  X,
+  PlusCircle,
+  AlertCircle
 } from 'lucide-react';
 import { CATEGORIES, CITIES } from '../data/mockData';
 
@@ -32,8 +32,8 @@ const getInitialActivityValues = (initialActivity) => {
   }
   const desc = initialActivity.desc
     ? (initialActivity.desc.length >= 100
-        ? initialActivity.desc
-        : `${initialActivity.desc}. Looking for a verified, polite companion to join me for this session. Safe public meet-up in Bengaluru.`)
+      ? initialActivity.desc
+      : `${initialActivity.desc}. Looking for a verified, polite companion to join me for this session. Safe public meet-up in Bengaluru.`)
     : '';
 
   return {
@@ -44,11 +44,11 @@ const getInitialActivityValues = (initialActivity) => {
   };
 };
 
-export default function PostRequestModal({ 
-  isOpen, 
-  onClose, 
-  onSubmitRequest, 
-  role, 
+export default function PostRequestModal({
+  isOpen,
+  onClose,
+  onSubmitRequest,
+  role,
   onShowToast,
   initialActivity = null
 }) {
@@ -125,11 +125,11 @@ export default function PostRequestModal({
 
   return (
     <div className="modal-overlay">
-      <div 
+      <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="post-request-modal-title"
-        className="modal-box modal-enter" 
+        className="modal-box modal-enter"
         style={{
           width: '100%',
           maxWidth: 580,
@@ -166,7 +166,7 @@ export default function PostRequestModal({
         </p>
 
         <form onSubmit={handleSubmit}>
-          
+
           {/* Post As Toggle */}
           <div style={{
             display: 'flex',
@@ -244,7 +244,7 @@ export default function PostRequestModal({
                 {title.length}/10 min chars
               </span>
             </div>
-            <input 
+            <input
               id="post-title"
               type="text"
               maxLength={120}
@@ -285,7 +285,7 @@ export default function PostRequestModal({
                 {description.length}/100 min chars
               </span>
             </div>
-            <textarea 
+            <textarea
               id="post-description"
               rows={4}
               placeholder="Describe what you plan to do, preferred timing, meeting location, and what kind of companionship style you prefer. Keep it safe, public, and platonic."
@@ -322,7 +322,7 @@ export default function PostRequestModal({
               <div style={{ display: 'flex', gap: 6 }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                   <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--color-gold)' }}>₹</span>
-                  <input 
+                  <input
                     id="post-budget"
                     type="number"
                     min="100"

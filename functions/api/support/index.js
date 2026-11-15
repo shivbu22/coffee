@@ -66,3 +66,4 @@ export async function onRequestGet({ request, env }) {
   const { results } = await env.DB.prepare(query).bind(...params).all();
   return json({ tickets: results || [] });
 }
+

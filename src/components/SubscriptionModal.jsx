@@ -27,7 +27,7 @@ export default function SubscriptionModal({
   initialMode = 'buddysearch_hero'
 }) {
   const [modalMode, setModalMode] = useState(initialMode); // 'buddysearch_hero' | 'select_plan' | 'checkout' | 'success'
-  const [selectedTier, setSelectedTier] = useState(defaultTier); // default to ₹599 (12 Months, Most Popular)
+  const [selectedTier, setSelectedTier] = useState(defaultTier); // default to ₹299 (6 Months, Most Popular)
   const [couponCode, setCouponCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0); // in percent
   const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
@@ -381,14 +381,14 @@ export default function SubscriptionModal({
                 fontSize: '0.78rem',
                 color: 'var(--text-muted, #94a3b8)'
               }}>
-                Starts at <strong style={{ color: 'var(--text-main, #334155)' }}>₹299 (3 Months)</strong> · Premium from <strong>₹50/mo</strong> · Star Member <strong>₹799 Lifetime</strong>
+                Starts at just <strong style={{ color: 'var(--text-main, #334155)' }}>₹99/month</strong> · Save up to 58% with annual plan
               </div>
             </div>
           </div>
         )}
 
         {/* ==================================================== */}
-        {/* 2. CHOOSE PLAN VIEW (BuddySearch 4 Tiers: Basic, Standard, Premium, Star) */}
+        {/* 2. CHOOSE PLAN VIEW (3 Duration Tiers: 1 Month, 6 Months, 1 Year — Same Features) */}
         {/* ==================================================== */}
         {modalMode === 'select_plan' && (
           <div style={{ padding: '28px 24px' }}>
@@ -406,13 +406,13 @@ export default function SubscriptionModal({
                 marginBottom: 8
               }}>
                 <Award size={12} />
-                SELECT YOUR MEMBERSHIP PASS
+                SELECT YOUR PLAN
               </div>
               <h3 id="subscription-modal-title" style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 4px 0', color: 'var(--text-main)' }}>
-                Choose Your Pass
+                Choose Your Duration
               </h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Instant access to verified companion chats, requests, and direct proposals.
+                All plans include full access. Same features, just pick your duration.
               </p>
             </div>
 

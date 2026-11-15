@@ -2,11 +2,10 @@
 // Amounts are decided HERE, never trusted from the client.
 // Keep in sync with SUBSCRIPTION_PLANS in src/data/mockData.js (price in INR).
 export const PLANS = {
-  basic: { name: 'Basic Plan', amountPaise: 29900 },
-  standard: { name: 'Standard Plan', amountPaise: 39900 },
-  premium: { name: 'Premium Plan', amountPaise: 59900 },
-  star_member: { name: 'Star Member VIP', amountPaise: 79900 },
-  star: { name: 'Star Member VIP', amountPaise: 79900 },
+  basic: { name: '1 Month', amountPaise: 9900 },
+  premium: { name: '6 Months', amountPaise: 29900 },
+  star_member: { name: '1 Year', amountPaise: 49900 },
+  star: { name: '1 Year', amountPaise: 49900 },
 };
 
 export const COUPONS = {

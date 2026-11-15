@@ -1139,10 +1139,10 @@ export default function LandingPage({
           boxShadow: 'var(--shadow-sm)'
         }}>
           <h2 style={{ fontSize: '2.4rem', marginBottom: 12 }}>
-            Start Connecting with Companions from <span style={{ color: 'var(--color-primary)' }} className="tabular-nums">₹50 / Month</span>
+            Start Connecting with Companions from just <span style={{ color: 'var(--color-primary)' }} className="tabular-nums">₹99 / Month</span>
           </h2>
           <p style={{ color: 'var(--text-secondary)', maxWidth: 620, margin: '0 auto 28px auto', fontSize: '1rem', lineHeight: 1.6 }}>
-            Transparent BuddySearch-inspired multi-month memberships and Lifetime Star passes. Unlock verified companion chat privileges, request hangouts, and explore together safely.
+            Transparent memberships — same features on every plan. Just pick your duration. Unlock verified companion chat privileges, request hangouts, and explore together safely.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
             <button
