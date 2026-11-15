@@ -28,6 +28,9 @@ const LegalModal = lazy(() => import('./components/LegalModal'));
 const ShareInviteModal = lazy(() => import('./components/ShareInviteModal'));
 import CookieConsentBanner from './components/CookieConsentBanner';
 import ErrorBoundary from './components/ErrorBoundary';
+import AuthGuard from './components/AuthGuard';
+import EmergencySosModal from './components/EmergencySosModal';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
 
 function ViewLoader({ message = 'Loading...' }) {
   return (
@@ -58,6 +61,8 @@ import {
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export default function App() {
+  const isOnline = useNetworkStatus();
+
   // Top-level architecture separation: 'consumer' vs 'admin'
   const [siteMode, setSiteMode] = useState('consumer'); // 'consumer' | 'admin'
   const [adminAuth, setAdminAuth] = useState(null); // null if not logged in
@@ -180,6 +185,11 @@ export default function App() {
   };
 
   const handleStartChatWithCompanion = (companion) => {
+    if (!isLoggedIn) {
+      handleOpenAuth('client', 'chats', { targetCompanion: companion });
+      return;
+    }
+
     let existingRoom = chats.find(c => c.participant.name === companion.name);
     if (!existingRoom) {
       existingRoom = {
@@ -259,41 +269,47 @@ export default function App() {
     }
   };
 
-  const [pendingTab, setPendingTab] = useState(null);
+  const [pendingAuthAction, setPendingAuthAction] = useState(null);
 
-  const handleOpenAuth = (roleIntent = 'client', targetTab = null) => {
+  const handleOpenAuth = (roleIntent = 'client', targetTab = null, payload = null) => {
     setAuthDefaultRole(roleIntent);
-    if (targetTab) {
-      setPendingTab(targetTab);
+    if (targetTab || payload) {
+      setPendingAuthAction({ tab: targetTab, ...payload });
       const tabLabel = targetTab === 'subscriptions' 
         ? 'Plans' 
         : targetTab === 'chats' 
-        ? 'Chats' 
+        ? 'Encrypted Chats' 
         : targetTab === 'feed' 
         ? 'Feed' 
         : targetTab === 'discover' 
-        ? 'Discover' 
+        ? 'Discover Companions' 
         : targetTab === 'profile'
-        ? 'Studio'
+        ? 'Companion Studio'
         : targetTab === 'dashboard'
         ? 'Member Dashboard'
-        : targetTab.charAt(0).toUpperCase() + targetTab.slice(1);
+        : targetTab === 'vault'
+        ? 'Identity Vault'
+        : targetTab === 'notifications'
+        ? 'Notifications'
+        : targetTab ? (targetTab.charAt(0).toUpperCase() + targetTab.slice(1)) : 'this feature';
       showToast(`Please sign in or create an account to access ${tabLabel}.`, 'info');
     }
     setIsAuthModalOpen(true);
   };
 
   const navigateWithAuth = (tab, roleIntent = 'client') => {
-    if (!isLoggedIn && tab !== 'landing') {
+    const protectedTabs = ['chats', 'dashboard', 'vault', 'notifications', 'profile'];
+    if (!isLoggedIn && protectedTabs.includes(tab)) {
       handleOpenAuth(tab === 'profile' ? 'buddy' : roleIntent, tab);
       return;
     }
     setActiveTab(tab);
   };
 
-  // Enforce access control: non-authenticated users are restricted to landing
+  // Enforce access control: if user is logged out while in a protected tab, return to landing
   useEffect(() => {
-    if (!isLoggedIn && activeTab !== 'landing') {
+    const protectedTabs = ['chats', 'dashboard', 'vault', 'notifications', 'profile'];
+    if (!isLoggedIn && protectedTabs.includes(activeTab)) {
       setActiveTab('landing');
     }
   }, [isLoggedIn, activeTab]);
@@ -310,11 +326,18 @@ export default function App() {
       city: userProfile.city || 'Bengaluru',
       isAadhaarVerified: true
     }));
-    // Once signed in, land directly in the requested tab or default to feed / profile
-    const targetTab = pendingTab || (userProfile.role === 'buddy' ? 'profile' : 'feed');
-    setPendingTab(null);
-    setActiveTab(targetTab);
-    if (selectedActivityForPost) {
+
+    const action = pendingAuthAction;
+    setPendingAuthAction(null);
+
+    if (action?.targetCompanion) {
+      handleStartChatWithCompanion(action.targetCompanion);
+    } else {
+      const targetTab = action?.tab || (userProfile.role === 'buddy' ? 'profile' : 'feed');
+      setActiveTab(targetTab);
+    }
+
+    if (action?.openPostModal || selectedActivityForPost) {
       setIsPostModalOpen(true);
     }
     showToast(`Welcome back, ${userProfile.name.split(' ')[0]}!`, 'success');
@@ -470,10 +493,13 @@ export default function App() {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
-    StorageEngine.clearUserSession();
+    StorageEngine.purgeAllUserData();
     SupabaseAuthService.signOut();
+    setChats(StorageEngine.getChats());
+    setDashboardData(StorageEngine.getDashboardData());
+    setNotifications(StorageEngine.getNotifications());
     setActiveTab('landing');
-    showToast('You have signed out of your account.', 'info');
+    showToast('You have signed out and private data has been wiped.', 'info');
   };
 
   const handleOpenHallmark = (companion) => {
@@ -597,6 +623,29 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <a href="#main-content" className="skip-link">Skip to main content</a>
+
+      {/* Real-time Offline Resilience Alert Banner */}
+      {!isOnline && (
+        <div style={{
+          background: '#dc2626',
+          color: '#ffffff',
+          padding: '8px 16px',
+          textAlign: 'center',
+          fontSize: '0.82rem',
+          fontWeight: 700,
+          position: 'sticky',
+          top: 0,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.25)'
+        }}>
+          <AlertCircle size={15} />
+          <span>You are currently offline. Critical safety operations and live messages will sync once reconnected.</span>
+        </div>
+      )}
       
       {/* Consumer Shell Selection: Landing View vs In-App BuddySearch Shell */}
       {activeTab === 'landing' ? (
@@ -730,58 +779,82 @@ export default function App() {
           )}
 
           {activeTab === 'chats' && (
-            <ChatsView 
-              chats={chats}
-              setChats={setChats}
-              activeRoomId={activeRoomId}
-              setActiveRoomId={setActiveRoomId}
-              role={role}
-              onShowToast={showToast}
-              onOpenHallmark={handleOpenHallmark}
-              onAddBooking={handleAddBooking}
-            />
+            <AuthGuard 
+              isLoggedIn={isLoggedIn} 
+              onRequireAuth={() => handleOpenAuth('client', 'chats')} 
+              targetTab="chats"
+            >
+              <ChatsView 
+                chats={chats}
+                setChats={setChats}
+                activeRoomId={activeRoomId}
+                setActiveRoomId={setActiveRoomId}
+                role={role}
+                onShowToast={showToast}
+                onOpenHallmark={handleOpenHallmark}
+                onAddBooking={handleAddBooking}
+              />
+            </AuthGuard>
           )}
 
           {activeTab === 'notifications' && (
-            <NotificationsView 
-              notifications={notifications}
-              setNotifications={setNotifications}
-              notificationCount={unreadNotifCount}
-              setNotificationCount={(count) => {
-                if (count === 0) {
-                  setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-                }
-              }}
-              onNavigate={(tab, roomId) => {
-                if (roomId) setActiveRoomId(roomId);
-                setActiveTab(tab);
-              }}
-              onShowToast={showToast}
-            />
+            <AuthGuard 
+              isLoggedIn={isLoggedIn} 
+              onRequireAuth={() => handleOpenAuth(role, 'notifications')} 
+              targetTab="notifications"
+            >
+              <NotificationsView 
+                notifications={notifications}
+                setNotifications={setNotifications}
+                notificationCount={unreadNotifCount}
+                setNotificationCount={(count) => {
+                  if (count === 0) {
+                    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                  }
+                }}
+                onNavigate={(tab, roomId) => {
+                  if (roomId) setActiveRoomId(roomId);
+                  setActiveTab(tab);
+                }}
+                onShowToast={showToast}
+              />
+            </AuthGuard>
           )}
 
           {activeTab === 'dashboard' && (
-            <DashboardView 
-              dashboardData={dashboardData}
-              setDashboardData={setDashboardData}
-              role={role}
-              setRole={setRole}
-              onOpenPostRequest={() => setIsPostModalOpen(true)}
-              onNavigateToFeed={() => setActiveTab('feed')}
-              onNavigateToChats={() => setActiveTab('chats')}
-              onShowToast={showToast}
-              onOpenHallmark={handleOpenHallmark}
-            />
+            <AuthGuard 
+              isLoggedIn={isLoggedIn} 
+              onRequireAuth={() => handleOpenAuth(role, 'dashboard')} 
+              targetTab="dashboard"
+            >
+              <DashboardView 
+                dashboardData={dashboardData}
+                setDashboardData={setDashboardData}
+                role={role}
+                setRole={setRole}
+                onOpenPostRequest={() => setIsPostModalOpen(true)}
+                onNavigateToFeed={() => setActiveTab('feed')}
+                onNavigateToChats={() => setActiveTab('chats')}
+                onShowToast={showToast}
+                onOpenHallmark={handleOpenHallmark}
+              />
+            </AuthGuard>
           )}
 
           {activeTab === 'vault' && (
-            <IdentityVaultView 
-              kycRequests={kycRequests}
-              setKycRequests={setKycRequests}
-              role={role}
-              onShowToast={showToast}
-              onOpenHallmark={handleOpenHallmark}
-            />
+            <AuthGuard 
+              isLoggedIn={isLoggedIn} 
+              onRequireAuth={() => handleOpenAuth(role, 'vault')} 
+              targetTab="vault"
+            >
+              <IdentityVaultView 
+                kycRequests={kycRequests}
+                setKycRequests={setKycRequests}
+                role={role}
+                onShowToast={showToast}
+                onOpenHallmark={handleOpenHallmark}
+              />
+            </AuthGuard>
           )}
 
           {activeTab === 'help' && (
@@ -795,16 +868,22 @@ export default function App() {
           )}
 
           {activeTab === 'profile' && (
-            <BuddyProfileView 
-              profile={buddyProfile}
-              setProfile={setBuddyProfile}
-              onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
-          onOpenShareInvite={handleOpenShare}
-              onNavigateToFeed={() => setActiveTab('feed')}
-              onNavigateToVault={() => setActiveTab('vault')}
-              onShowToast={showToast}
-              onOpenHallmark={() => handleOpenHallmark(buddyProfile)}
-            />
+            <AuthGuard 
+              isLoggedIn={isLoggedIn} 
+              onRequireAuth={() => handleOpenAuth('buddy', 'profile')} 
+              targetTab="profile"
+            >
+              <BuddyProfileView 
+                profile={buddyProfile}
+                setProfile={setBuddyProfile}
+                onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+                onOpenShareInvite={handleOpenShare}
+                onNavigateToFeed={() => setActiveTab('feed')}
+                onNavigateToVault={() => setActiveTab('vault')}
+                onShowToast={showToast}
+                onOpenHallmark={() => handleOpenHallmark(buddyProfile)}
+              />
+            </AuthGuard>
           )}
 
           {activeTab === 'subscriptions' && (

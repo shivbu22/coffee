@@ -339,15 +339,20 @@ CREATE POLICY "Public can view activity requests" ON public.activity_requests FO
 CREATE POLICY "Public can insert activity requests" ON public.activity_requests FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public can update activity requests" ON public.activity_requests FOR UPDATE USING (true);
 
-CREATE POLICY "Public can view bookings" ON public.bookings FOR SELECT USING (true);
-CREATE POLICY "Public can insert bookings" ON public.bookings FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public can verify handshake PIN and release escrow" ON public.bookings FOR UPDATE USING (true);
+CREATE POLICY "Parties can view their own bookings" ON public.bookings FOR SELECT 
+    USING (auth.uid()::text = client_id OR auth.uid()::text = buddy_id OR auth.role() = 'service_role');
+CREATE POLICY "Clients can create bookings" ON public.bookings FOR INSERT 
+    WITH CHECK (auth.uid()::text = client_id OR auth.role() = 'service_role');
+CREATE POLICY "Parties can update booking status" ON public.bookings FOR UPDATE 
+    USING (auth.uid()::text = client_id OR auth.uid()::text = buddy_id OR auth.role() = 'service_role');
 
-CREATE POLICY "Public can view room messages" ON public.chat_messages FOR SELECT USING (true);
-CREATE POLICY "Public can insert room messages" ON public.chat_messages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Room participants can view messages" ON public.chat_messages FOR SELECT 
+    USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated users can insert room messages" ON public.chat_messages FOR INSERT 
+    WITH CHECK (auth.uid()::text = sender_id OR auth.role() = 'service_role');
 
 CREATE POLICY "Public can audit hallmark credentials" ON public.hallmark_credentials FOR SELECT USING (true);
-CREATE POLICY "Public can insert hallmark records" ON public.hallmark_credentials FOR INSERT WITH CHECK (true);
+CREATE POLICY "Service role can manage hallmark records" ON public.hallmark_credentials FOR INSERT WITH CHECK (auth.role() = 'service_role');
 
 -- Enable Realtime WebSockets
 DO $$
@@ -507,21 +512,43 @@ export const SupabaseService = {
     return data;
   },
 
-  subscribeToRoom(roomId, onNewMessage) {
+  subscribeToRoom(roomId, onNewMessage, onStatusChange) {
     if (!isSupabaseConfigured || !supabase) return () => {};
-    const channel = supabase
-      .channel(`room:${roomId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
-        payload => {
-          onNewMessage(payload.new);
-        }
-      )
-      .subscribe();
+    let retryCount = 0;
+    let activeChannel = null;
+
+    const initChannel = () => {
+      activeChannel = supabase
+        .channel(`room:${roomId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
+          payload => {
+            onNewMessage(payload.new);
+          }
+        )
+        .subscribe((status, err) => {
+          if (onStatusChange) onStatusChange(status, err);
+          if (status === 'SUBSCRIBED') {
+            retryCount = 0;
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            const timeout = Math.min(1000 * Math.pow(2, retryCount), 15000);
+            retryCount++;
+            console.warn(`[Supabase Realtime] Reconnecting room ${roomId} in ${timeout}ms...`);
+            setTimeout(() => {
+              if (activeChannel) supabase.removeChannel(activeChannel);
+              initChannel();
+            }, timeout);
+          }
+        });
+    };
+
+    initChannel();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (activeChannel) {
+        supabase.removeChannel(activeChannel);
+      }
     };
   },
 

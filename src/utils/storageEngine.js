@@ -58,6 +58,19 @@ export const StorageEngine = {
       console.error(e);
     }
   },
+  purgeAllUserData: () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.USER_SESSION);
+      localStorage.removeItem(STORAGE_KEYS.CHATS);
+      localStorage.removeItem(STORAGE_KEYS.DASHBOARD);
+      localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+      localStorage.removeItem(STORAGE_KEYS.KYC);
+      localStorage.removeItem(STORAGE_KEYS.BUDDY_PROFILE);
+      localStorage.removeItem(STORAGE_KEYS.MEMBERSHIP);
+    } catch (e) {
+      console.error('[StorageEngine] Purge all data failed:', e);
+    }
+  },
 
   // --- Membership ---
   getMembership: () => safeGet(STORAGE_KEYS.MEMBERSHIP, { hasActiveSub: false, tier: null }),

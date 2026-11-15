@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
+import SafeAvatar from './SafeAvatar';
+import EmergencySosModal from './EmergencySosModal';
 
 export default function ChatsView({ 
   chats, 
@@ -44,6 +46,7 @@ export default function ChatsView({
   const [filterCategory, setFilterCategory] = useState('all'); // 'all' | 'unread' | 'quotes' | 'active'
   const [copiedPin, setCopiedPin] = useState(false);
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
+  const [isSosModalOpen, setIsSosModalOpen] = useState(false);
 
   // Quick icebreaker suggestion chips
   const quickChips = [
@@ -75,22 +78,25 @@ export default function ChatsView({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.messages, isTyping]);
 
-  // Supabase Realtime WebSocket subscription for live messages
+  // Supabase Realtime WebSocket subscription for live messages (Cross-tab resilient)
   useEffect(() => {
     if (!isSupabaseConfigured || !selectedRoomId) return;
     const unsubscribe = SupabaseService.subscribeToRoom(selectedRoomId, (incoming) => {
-      if (incoming.sender_role === role) return; // avoid duplicate local echo
       setChats(prev => prev.map(c => {
         if (c.id === selectedRoomId) {
-          if (c.messages.some(m => m.id === incoming.id)) return c;
+          // Deduplicate by message ID or client_temp_id to support cross-tab sync
+          if (c.messages.some(m => m.id === incoming.id || (m.clientTempId && m.clientTempId === incoming.client_temp_id))) {
+            return c;
+          }
           return {
             ...c,
             messages: [...c.messages, {
               id: incoming.id,
-              sender: 'other',
+              sender: incoming.sender_role === role ? 'me' : 'other',
               text: incoming.text,
               time: new Date(incoming.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              isRead: true
+              isRead: true,
+              status: 'delivered'
             }],
             lastMessageTime: 'Just now'
           };
@@ -127,12 +133,17 @@ export default function ChatsView({
     const text = textToSend || inputText;
     if (!text || !text.trim()) return;
 
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const tempId = `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
     const newMsg = {
-      id: `m_${Date.now()}`,
+      id: tempId,
+      clientTempId: tempId,
       sender: 'me',
       text: text.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isRead: true
+      isRead: true,
+      status: isOnline ? 'delivered' : 'failed'
     };
 
     setChats(prev => prev.map(c => {
@@ -148,17 +159,35 @@ export default function ChatsView({
 
     if (!textToSend) setInputText('');
 
+    if (!isOnline) {
+      if (onShowToast) onShowToast("You are offline. Message queued locally.", "error");
+      return;
+    }
+
     // Sync to Supabase PostgreSQL Realtime if cloud connected
     if (isSupabaseConfigured) {
       SupabaseService.sendMessage({
         room_id: selectedRoomId,
         sender_name: role === 'buddy' ? 'Buddy' : 'Client',
         sender_role: role === 'buddy' ? 'buddy' : 'client',
-        text: text.trim()
-      }).catch(err => console.warn('[Supabase Sync] message delivery fallback:', err));
+        text: text.trim(),
+        client_temp_id: tempId
+      }).catch(err => {
+        console.warn('[Supabase Sync] message delivery fallback:', err);
+        setChats(prev => prev.map(c => {
+          if (c.id === selectedRoomId) {
+            return {
+              ...c,
+              messages: c.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m)
+            };
+          }
+          return c;
+        }));
+      });
+      return;
     }
 
-    // Simulate companion typing and automated reply
+    // In local demo mode only, simulate companion typing and automated reply
     setTimeout(() => {
       setIsTyping(true);
     }, 500);
@@ -351,7 +380,7 @@ export default function ChatsView({
       {/* Outer Card Frame */}
       <div style={{
         borderRadius: 20,
-        height: 'calc(100vh - 105px)',
+        height: 'calc(100dvh - 105px)',
         minHeight: 580,
         display: 'flex',
         overflow: 'hidden',
@@ -1476,9 +1505,7 @@ export default function ChatsView({
               {/* Emergency SOS button */}
               <button
                 type="button"
-                onClick={() => {
-                  if (onShowToast) onShowToast('Emergency SOS simulated: Live location pinged to FindCo 24/7 Command.', 'error');
-                }}
+                onClick={() => setIsSosModalOpen(true)}
                 style={{
                   width: '100%',
                   marginTop: 24,
@@ -1497,7 +1524,7 @@ export default function ChatsView({
                 }}
               >
                 <AlertTriangle size={15} />
-                <span>Emergency Safety Alert</span>
+                <span>Emergency Safety Alert (112 SOS)</span>
               </button>
             </div>
           </div>
@@ -1746,6 +1773,14 @@ export default function ChatsView({
           </div>
         </div>
       )}
+
+      {/* Real-time Crisis & SOS Emergency Dispatch Modal */}
+      <EmergencySosModal 
+        isOpen={isSosModalOpen}
+        onClose={() => setIsSosModalOpen(false)}
+        currentUser={{ name: role === 'buddy' ? 'Companion' : 'Client' }}
+        onShowToast={onShowToast}
+      />
 
     </div>
   );
