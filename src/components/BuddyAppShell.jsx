@@ -14,9 +14,11 @@ import {
   CheckCircle2,
   Lock,
   Share2,
-  X
+  X,
+  LogIn
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
+import SafeAvatar from './SafeAvatar';
 
 export default function BuddyAppShell({
   activeTab,
@@ -32,6 +34,9 @@ export default function BuddyAppShell({
   onUnlockSubscription: _onUnlockSubscription,
   onOpenPostRequest,
   buddyProfile,
+  currentUser = null,
+  isLoggedIn = false,
+  onOpenAuth,
   onOpenAdminPortal: _onOpenAdminPortal,
   onLogout,
   onShowToast,
@@ -49,9 +54,25 @@ export default function BuddyAppShell({
     }
   });
 
-  const userName = buddyProfile?.name || 'Shiv Y';
-  const userAvatar = buddyProfile?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces';
-  const roleDisplay = role === 'buddy' ? '✦ Buddy' : '✦ Client';
+  const userName = isLoggedIn ? (currentUser?.name || buddyProfile?.name || 'Member') : 'Guest Visitor';
+  const userAvatar = isLoggedIn ? (currentUser?.avatar || buddyProfile?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces') : null;
+  const roleDisplay = isLoggedIn ? (role === 'buddy' ? '✦ Buddy' : '✦ Client') : 'Not Signed In';
+
+  const handleTabClick = (item) => {
+    if (item.onClick) {
+      item.onClick();
+      return;
+    }
+    if (!isLoggedIn && ['chats', 'notifications', 'dashboard', 'profile', 'vault'].includes(item.id)) {
+      if (onOpenAuth) {
+        onOpenAuth('client', item.id);
+      } else {
+        setActiveTab(item.id);
+      }
+      return;
+    }
+    setActiveTab(item.id);
+  };
 
   const navItems = [
     {
@@ -209,13 +230,7 @@ export default function BuddyAppShell({
                           <button
                             key={item.id}
                             type="button"
-                            onClick={() => {
-                              if (item.onClick) {
-                                item.onClick();
-                              } else {
-                                setActiveTab(item.id);
-                              }
-                            }}
+                            onClick={() => handleTabClick(item)}
                             style={{
                               position: 'relative',
                               display: 'flex',
@@ -378,13 +393,7 @@ export default function BuddyAppShell({
                         <button
                           key={item.id}
                           type="button"
-                          onClick={() => {
-                            if (item.onClick) {
-                              item.onClick();
-                            } else {
-                              setActiveTab(item.id);
-                            }
-                          }}
+                          onClick={() => handleTabClick(item)}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -451,98 +460,159 @@ export default function BuddyAppShell({
           flexDirection: 'column',
           gap: 10
         }}>
-          {/* User Info Tile */}
-          <div 
-            onClick={() => setActiveTab('profile')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '6px 8px',
-              borderRadius: 12,
-              cursor: 'pointer',
-              background: '#f8fafc',
-              border: '1px solid #f1f5f9'
-            }}
-          >
-            <img
-              src={userAvatar}
-              alt={userName}
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: '50%',
-                objectFit: 'cover'
-              }}
-            />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: '0.84rem',
-                fontWeight: 700,
-                color: '#0f172a',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {userName}
+          {isLoggedIn ? (
+            <>
+              {/* User Info Tile */}
+              <div 
+                onClick={() => setActiveTab('profile')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '6px 8px',
+                  borderRadius: 12,
+                  cursor: 'pointer',
+                  background: '#f8fafc',
+                  border: '1px solid #f1f5f9'
+                }}
+              >
+                <SafeAvatar
+                  src={userAvatar}
+                  alt={userName}
+                  size={34}
+                  style={{ borderRadius: '50%' }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {userName}
+                  </div>
+                  <div style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    color: '#e11d48'
+                  }}>
+                    {roleDisplay}
+                  </div>
+                </div>
               </div>
-              <div style={{
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                color: '#e11d48'
-              }}>
-                {roleDisplay}
-              </div>
-            </div>
-          </div>
 
-          {/* Mode Switch / Sign Out Trigger */}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button
-              type="button"
-              onClick={() => setRole(role === 'buddy' ? 'client' : 'buddy')}
-              style={{
-                flex: 1,
-                padding: '6px',
-                borderRadius: 8,
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                color: '#475569',
-                cursor: 'pointer'
-              }}
-            >
-              Switch Mode
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (onLogout) {
-                  onLogout();
-                } else {
-                  setActiveTab('landing');
-                }
-              }}
-              style={{
-                padding: '6px 8px',
-                borderRadius: 8,
-                background: '#fff1f2',
-                border: '1px solid #fecdd3',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: '#e11d48',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4
-              }}
-              title="Sign Out & Return to Home"
-            >
-              <LogOut size={12} />
-              Sign Out
-            </button>
-          </div>
+              {/* Mode Switch / Sign Out Trigger */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setRole(role === 'buddy' ? 'client' : 'buddy')}
+                  style={{
+                    flex: 1,
+                    padding: '6px',
+                    borderRadius: 8,
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Switch Mode
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onLogout) {
+                      onLogout();
+                    } else {
+                      setActiveTab('landing');
+                    }
+                  }}
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: 8,
+                    background: '#fff1f2',
+                    border: '1px solid #fecdd3',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: '#e11d48',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                  title="Sign Out & Return to Home"
+                >
+                  <LogOut size={12} />
+                  Sign Out
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Unauthenticated Visitor State */
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 14,
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  background: 'rgba(225, 29, 72, 0.1)',
+                  color: '#e11d48',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Lock size={15} />
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>Guest Visitor</div>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Not signed in</div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenAuth) {
+                    onOpenAuth('client');
+                  } else {
+                    setActiveTab('landing');
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 8px rgba(225, 29, 72, 0.2)'
+                }}
+              >
+                <LogIn size={13} />
+                <span>Sign In / Join</span>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
