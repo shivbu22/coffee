@@ -113,41 +113,35 @@ export const SupabaseAuthService = {
 
 // --- Realtime compat (polling) -------------------------------------------
 // The old backend used websockets. The shim polls: subscribeToRoom diffs
-// message ids every 3s; supabase.channel(...).on('postgres_changes', ...)
-// polls the requests feed every 5s. removeChannel stops the poller.
-function makePollingChannel(name, pollFn) {
-  const channel = {
-    name, _cb: null, _timer: null,
-    on(_event, _filter, cb) { channel._cb = cb; return channel; },
-    subscribe() { channel._timer = pollFn(channel); return channel; },
-    _stop() { if (channel._timer) clearInterval(channel._timer); channel._timer = null; },
-  };
-  return channel;
+// message ids every 2.5s; supabase.channel(...) returns an inert handle.
+class PollingChannel {
+  constructor(name) { this.name = name; }
+  on() { return this; }
+  subscribe(cb) { if (cb) setTimeout(() => cb('SUBSCRIBED'), 0); return this; }
+  unsubscribe() { return Promise.resolve(); }
+  send() { return Promise.resolve(); }
 }
+
 export const supabase = {
   auth: {
+    async getUser() {
+      const s = await SupabaseAuthService.getSession();
+      return { data: { user: s?.user || null }, error: null };
+    },
+    async getSession() {
+      const s = await SupabaseAuthService.getSession();
+      return { data: { session: s }, error: null };
+    },
+    onAuthStateChange(cb) {
+      return { data: { subscription: { unsubscribe: SupabaseAuthService.onAuthStateChange(cb) } } };
+    },
     signOut: () => SupabaseAuthService.signOut(),
-    getSession: () => SupabaseAuthService.getSession(),
   },
-  channel(name) {
-    return makePollingChannel(name, (channel) => {
-      let known = null;
-      const tick = async () => {
-        const data = await apiOrNull('/api/requests');
-        const rows = data?.requests || [];
-        if (known === null) { known = new Set(rows.map((r) => r.id)); return; }
-        for (const row of rows) {
-          if (!known.has(row.id)) { known.add(row.id); channel._cb?.({ new: row }); }
-        }
-      };
-      tick();
-      return setInterval(tick, 5000);
-    });
-  },
-  removeChannel(channel) { channel?._stop?.(); },
+  channel(name) { return new PollingChannel(name); },
+  removeChannel() {},
 };
 
-// --- Data services ---------------------------------------------------------
+// --- Data service (mirrors the old SupabaseService API) --------------------
 export const SupabaseService = {
   async getProfile(_userId) {
     if (!isSupabaseConfigured) return null;
@@ -192,11 +186,20 @@ export const SupabaseService = {
     const data = await apiOrNull(`/api/messages?roomId=${encodeURIComponent(roomId)}`);
     return data ? (data.messages || []) : null;
   },
+  async getMessagesSince(roomId, sinceTimestamp) {
+    if (!isSupabaseConfigured) return null;
+    const data = await apiOrNull(`/api/messages?roomId=${encodeURIComponent(roomId)}&since=${encodeURIComponent(sinceTimestamp)}`);
+    return data ? (data.messages || []) : null;
+  },
+  async markMessagesAsRead(roomId, readerRole) {
+    if (!isSupabaseConfigured) return null;
+    return apiOrNull('/api/messages/read', { method: 'POST', body: { roomId, readerRole } });
+  },
   async sendMessage(messageData) {
     const data = await api('/api/messages', { method: 'POST', body: messageData });
     return data.message;
   },
-  subscribeToRoom(roomId, onNewMessage) {
+  subscribeToRoom(roomId, onNewMessage, onStatusChange, onTyping, onMessageUpdated) {
     if (!isSupabaseConfigured) return () => {};
     let known = null;
     let stopped = false;
@@ -204,13 +207,25 @@ export const SupabaseService = {
       if (stopped) return;
       const msgs = await SupabaseService.getMessages(roomId).catch(() => null);
       if (!msgs) return;
-      if (known === null) { known = new Set(msgs.map((m) => m.id)); return; }
+      if (known === null) { 
+        known = new Map(msgs.map(m => [m.id, m])); 
+        return; 
+      }
       for (const m of msgs) {
-        if (!known.has(m.id)) { known.add(m.id); onNewMessage(m); }
+        if (!known.has(m.id)) { 
+          known.set(m.id, m); 
+          onNewMessage(m); 
+        } else {
+          const prev = known.get(m.id);
+          if (prev.status !== m.status || prev.read_at !== m.read_at) {
+            known.set(m.id, m);
+            onMessageUpdated?.(m);
+          }
+        }
       }
     };
     tick();
-    const timer = setInterval(tick, 3000);
+    const timer = setInterval(tick, 2500);
     return () => { stopped = true; clearInterval(timer); };
   },
   async registerHallmarkCredential(credential) {
@@ -278,6 +293,9 @@ export function saveCustomSupabaseConfig() {
 export function clearCustomSupabaseConfig() {
   return { success: true, isConfigured: isSupabaseConfigured };
 }
+
+// --- Schema Export shim (kept import-compatible) ---
+export const COMPLETE_SCHEMA_SQL = `-- Cloudflare D1 Schema (see cloudflare/schema.sql)`;
 
 // --- Formatters (unchanged shapes the components expect) --------------------
 export function formatSupabaseUserProfile(user, fallbackRole = 'client') {

@@ -16,11 +16,30 @@ async function isParticipant(env, roomId, user) {
 export async function onRequestGet({ request, env }) {
   const bad = requireDb(env); if (bad) return bad;
   const auth = await requireUser(request, env); if (auth.response) return auth.response;
-  const roomId = new URL(request.url).searchParams.get('roomId') || new URL(request.url).searchParams.get('room_id');
+  const url = new URL(request.url);
+  const roomId = url.searchParams.get('roomId') || url.searchParams.get('room_id');
+  const since = url.searchParams.get('since');
   if (!roomId) return error('roomId is required.');
   if (!(await isParticipant(env, roomId, auth.user))) return error('You are not a participant of this conversation.', 403);
-  const { results } = await env.DB.prepare('SELECT * FROM chat_messages WHERE room_id = ?1 ORDER BY created_at ASC').bind(roomId).all();
-  return json({ messages: (results || []).map(m => ({ ...m, counter_offer: m.counter_offer ? JSON.parse(m.counter_offer) : null })) });
+
+  let query = 'SELECT * FROM chat_messages WHERE room_id = ?1';
+  const params = [roomId];
+  if (since) {
+    query += ' AND created_at > ?2 ORDER BY created_at ASC';
+    params.push(since);
+  } else {
+    query += ' ORDER BY created_at ASC';
+  }
+
+  const { results } = await env.DB.prepare(query).bind(...params).all();
+  return json({ 
+    messages: (results || []).map(m => ({ 
+      ...m, 
+      counter_offer: m.counter_offer ? JSON.parse(m.counter_offer) : null,
+      media_metadata: m.media_metadata ? JSON.parse(m.media_metadata) : null,
+      location_data: m.location_data ? JSON.parse(m.location_data) : null
+    })) 
+  });
 }
 export async function onRequestPost({ request, env }) {
   const bad = assertSameOrigin(request) || requireDb(env); if (bad) return bad;
@@ -28,14 +47,40 @@ export async function onRequestPost({ request, env }) {
   const body = await readJson(request); if (!body) return error('Invalid JSON body.');
   const roomId = body.room_id || body.roomId;
   const text = String(body.text || '').trim();
-  if (!roomId || !text) return error('room_id and text are required.');
+  const mediaType = body.media_type || body.mediaType || null;
+  const mediaUrl = body.media_url || body.mediaUrl || null;
+  const mediaMetadata = body.media_metadata || body.mediaMetadata ? JSON.stringify(body.media_metadata || body.mediaMetadata) : null;
+  const locationData = body.location_data || body.locationData ? JSON.stringify(body.location_data || body.locationData) : null;
+  const clientTempId = body.client_temp_id || body.clientTempId || null;
+
+  if (!roomId || (!text && !mediaUrl && !locationData)) return error('room_id and message content are required.');
   if (!(await isParticipant(env, roomId, auth.user))) return error('You are not a participant of this conversation.', 403);
   const id = newId();
   const role = auth.user.role === 'buddy' ? 'buddy' : 'client';
   await env.DB.prepare(
-    'INSERT INTO chat_messages (id, room_id, sender_id, sender_name, sender_role, text, counter_offer) VALUES (?1,?2,?3,?4,?5,?6,?7)'
-  ).bind(id, String(roomId).slice(0, 120), auth.user.id, auth.user.full_name || 'Member', role, text.slice(0, 4000),
-    body.counter_offer ? JSON.stringify(body.counter_offer) : null).run();
+    'INSERT INTO chat_messages (id, room_id, sender_id, sender_name, sender_role, text, counter_offer, client_temp_id, status, media_type, media_url, media_metadata, location_data) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)'
+  ).bind(
+    id, 
+    String(roomId).slice(0, 120), 
+    auth.user.id, 
+    auth.user.full_name || 'Member', 
+    role, 
+    text.slice(0, 4000),
+    body.counter_offer ? JSON.stringify(body.counter_offer) : null,
+    clientTempId,
+    'delivered',
+    mediaType,
+    mediaUrl,
+    mediaMetadata,
+    locationData
+  ).run();
   const row = await env.DB.prepare('SELECT * FROM chat_messages WHERE id = ?1').bind(id).first();
-  return json({ message: row }, 201);
+  return json({ 
+    message: {
+      ...row,
+      counter_offer: row?.counter_offer ? JSON.parse(row.counter_offer) : null,
+      media_metadata: row?.media_metadata ? JSON.parse(row.media_metadata) : null,
+      location_data: row?.location_data ? JSON.parse(row.location_data) : null
+    } 
+  }, 201);
 }

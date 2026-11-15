@@ -133,6 +133,13 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   sender_role TEXT NOT NULL CHECK (sender_role IN ('client','buddy','system')),
   text TEXT NOT NULL,
   counter_offer TEXT,
+  client_temp_id TEXT,
+  status TEXT DEFAULT 'delivered',
+  read_at TEXT,
+  media_type TEXT,
+  media_url TEXT,
+  media_metadata TEXT,
+  location_data TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_messages_room ON chat_messages(room_id, created_at ASC);

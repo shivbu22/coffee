@@ -150,6 +150,13 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
     sender_role TEXT NOT NULL CHECK (sender_role IN ('client', 'buddy', 'system')),
     text TEXT NOT NULL,
     counter_offer JSONB,
+    client_temp_id TEXT,
+    status TEXT DEFAULT 'sent' CHECK (status IN ('sending', 'sent', 'delivered', 'read', 'failed')),
+    read_at TIMESTAMPTZ,
+    media_type TEXT DEFAULT 'text' CHECK (media_type IN ('text', 'image', 'location', 'offer')),
+    media_url TEXT,
+    media_metadata JSONB DEFAULT '{}'::jsonb,
+    location_data JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

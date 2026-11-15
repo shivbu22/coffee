@@ -19,10 +19,131 @@ import {
   Award,
   Paperclip,
   Star,
-  Coffee
+  Coffee,
+  Image as ImageIcon,
+  RefreshCw,
+  Eye,
+  ExternalLink,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import SafeAvatar from './SafeAvatar';
+import EmergencySosModal from './EmergencySosModal';
+
+/**
+ * Client-side Canvas Image Compression
+ * Scales to max 1200x1200px and compresses to JPEG 75% quality.
+ * Prevents mobile memory crashes and optimizes network socket payloads.
+ */
+async function compressImageFile(file, maxWidth = 1200, maxHeight = 1200, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      reject(new Error('Invalid image file'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve({
+          dataUrl,
+          width,
+          height,
+          originalName: file.name,
+          sizeBytes: Math.round(dataUrl.length * 0.75)
+        });
+      };
+      img.onerror = () => reject(new Error('Failed to load image for compression'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * 5-stage Enterprise Message Status Indicator
+ * Lifecycle: sending (clock) -> sent (single tick) -> delivered (double tick) -> read (double cyan tick) -> failed (retry)
+ */
+function MessageDeliveryStatus({ status, onRetry }) {
+  if (status === 'sending' || status === 'queued') {
+    return (
+      <span title="Queued / Sending..." style={{ display: 'inline-flex', alignItems: 'center', opacity: 0.85 }}>
+        <Clock size={11} />
+      </span>
+    );
+  }
+  if (status === 'sent') {
+    return (
+      <span title="Sent to server" style={{ display: 'inline-flex', alignItems: 'center' }}>
+        <Check size={12} color="rgba(255, 255, 255, 0.75)" />
+      </span>
+    );
+  }
+  if (status === 'delivered') {
+    return (
+      <span title="Delivered to recipient" style={{ display: 'inline-flex', alignItems: 'center' }}>
+        <CheckCheck size={13} color="rgba(255, 255, 255, 0.9)" />
+      </span>
+    );
+  }
+  if (status === 'read') {
+    return (
+      <span title="Read by recipient" style={{ display: 'inline-flex', alignItems: 'center' }}>
+        <CheckCheck size={13} color="#38bdf8" />
+      </span>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onRetry) onRetry();
+        }}
+        title="Failed to deliver. Click to retry."
+        style={{
+          background: 'rgba(239, 68, 68, 0.3)',
+          border: '1px solid #f87171',
+          color: '#fee2e2',
+          borderRadius: 4,
+          padding: '1px 5px',
+          fontSize: '0.62rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 3
+        }}
+      >
+        <AlertTriangle size={10} color="#fca5a5" />
+        Retry
+      </button>
+    );
+  }
+  return <CheckCheck size={13} color="rgba(255, 255, 255, 0.9)" />;
+}
 
 export default function ChatsView({ 
   chats, 
@@ -34,6 +155,7 @@ export default function ChatsView({
   onOpenHallmark,
   onAddBooking
 }) {
+  const isOnline = useNetworkStatus();
   const [selectedRoomId, setSelectedRoomId] = useState(activeRoomId || (chats[0]?.id || 'room_1'));
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -44,6 +166,16 @@ export default function ChatsView({
   const [filterCategory, setFilterCategory] = useState('all'); // 'all' | 'unread' | 'quotes' | 'active'
   const [copiedPin, setCopiedPin] = useState(false);
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
+
+  // Enterprise Chat UI State
+  const [offerHours, setOfferHours] = useState('2');
+  const [activeLightboxImage, setActiveLightboxImage] = useState(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [customVenueName, setCustomVenueName] = useState('');
+  const [customVenueAddress, setCustomVenueAddress] = useState('');
+  const fileInputRef = useRef(null);
+  const messageTimestampsRef = useRef([]);
 
   // Quick icebreaker suggestion chips
   const quickChips = [
@@ -75,22 +207,38 @@ export default function ChatsView({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.messages, isTyping]);
 
-  // Cloudflare Realtime WebSocket subscription for live messages
+  // Realtime subscription for live messages & Read Receipts (Cross-tab resilient)
   useEffect(() => {
     if (!isSupabaseConfigured || !selectedRoomId) return;
     const unsubscribe = SupabaseService.subscribeToRoom(selectedRoomId, (incoming) => {
-      if (incoming.sender_role === role) return; // avoid duplicate local echo
       setChats(prev => prev.map(c => {
         if (c.id === selectedRoomId) {
-          if (c.messages.some(m => m.id === incoming.id)) return c;
+          // If this is an UPDATE event (e.g. read receipt update)
+          if (incoming._isUpdate) {
+            return {
+              ...c,
+              messages: c.messages.map(m => m.id === incoming.id ? { ...m, status: incoming.status || 'read', isRead: true } : m)
+            };
+          }
+
+          // Deduplicate by message ID or client_temp_id to support cross-tab sync
+          if (c.messages.some(m => m.id === incoming.id || (m.clientTempId && m.clientTempId === incoming.client_temp_id))) {
+            return c;
+          }
           return {
             ...c,
             messages: [...c.messages, {
               id: incoming.id,
-              sender: 'other',
+              clientTempId: incoming.client_temp_id,
+              sender: incoming.sender_role === role ? 'me' : 'other',
               text: incoming.text,
+              mediaType: incoming.media_type,
+              mediaUrl: incoming.media_url,
+              mediaMetadata: incoming.media_metadata,
+              locationData: incoming.location_data,
               time: new Date(incoming.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              isRead: true
+              isRead: true,
+              status: incoming.status || 'delivered'
             }],
             lastMessageTime: 'Just now'
           };
@@ -100,6 +248,48 @@ export default function ChatsView({
     });
     return () => unsubscribe();
   }, [selectedRoomId, role, setChats]);
+
+  // Offline Outbox Queue Drainer: Auto-flushes when device comes back online
+  useEffect(() => {
+    if (!isOnline) return;
+    try {
+      const raw = localStorage.getItem('findco_offline_chat_queue_v1');
+      if (!raw) return;
+      const queue = JSON.parse(raw);
+      if (!Array.isArray(queue) || queue.length === 0) return;
+
+      queue.forEach(item => {
+        if (isSupabaseConfigured) {
+          SupabaseService.sendMessage({
+            room_id: item.roomId,
+            sender_name: role === 'buddy' ? 'Buddy' : 'Client',
+            sender_role: role === 'buddy' ? 'buddy' : 'client',
+            text: item.text,
+            client_temp_id: item.clientTempId || item.id,
+            media_type: item.mediaType,
+            media_url: item.mediaUrl,
+            media_metadata: item.mediaMetadata,
+            location_data: item.locationData
+          }).catch(console.warn);
+        }
+
+        setChats(prev => prev.map(c => {
+          if (c.id === item.roomId) {
+            return {
+              ...c,
+              messages: c.messages.map(m => (m.id === item.id || m.clientTempId === item.clientTempId) ? { ...m, status: 'delivered' } : m)
+            };
+          }
+          return c;
+        }));
+      });
+
+      localStorage.removeItem('findco_offline_chat_queue_v1');
+      if (onShowToast) onShowToast(`Back online! Synchronized ${queue.length} offline message(s).`, 'success');
+    } catch (err) {
+      console.warn('[Offline Queue Drain] error:', err);
+    }
+  }, [isOnline, role, setChats, onShowToast]);
 
   // Filter conversations
   const filteredChats = chats.filter(c => {
@@ -123,16 +313,34 @@ export default function ChatsView({
     return true;
   });
 
-  const handleSendMessage = (textToSend = null) => {
-    const text = textToSend || inputText;
-    if (!text || !text.trim()) return;
+  const handleSendMessage = (textToSend = null, mediaPayload = null) => {
+    const text = textToSend !== null ? textToSend : inputText;
+    if ((!text || !text.trim()) && !mediaPayload) return;
+
+    // Rate Limiting: Sliding window (max 5 messages per 3 seconds)
+    const now = Date.now();
+    messageTimestampsRef.current = messageTimestampsRef.current.filter(t => now - t < 3000);
+    if (messageTimestampsRef.current.length >= 5) {
+      if (onShowToast) onShowToast("You are sending messages too fast. Please pause for 3 seconds.", "error");
+      return;
+    }
+    messageTimestampsRef.current.push(now);
+
+    const tempId = `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const cleanText = text ? text.trim().slice(0, 1000) : '';
 
     const newMsg = {
-      id: `m_${Date.now()}`,
+      id: tempId,
+      clientTempId: tempId,
       sender: 'me',
-      text: text.trim(),
+      text: cleanText,
+      mediaType: mediaPayload?.mediaType || null,
+      mediaUrl: mediaPayload?.mediaUrl || null,
+      mediaMetadata: mediaPayload?.mediaMetadata || null,
+      locationData: mediaPayload?.locationData || null,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isRead: true
+      isRead: true,
+      status: isOnline ? 'delivered' : 'queued'
     };
 
     setChats(prev => prev.map(c => {
@@ -146,16 +354,46 @@ export default function ChatsView({
       return c;
     }));
 
-    if (!textToSend) setInputText('');
+    if (!textToSend && !mediaPayload) setInputText('');
 
-    // Sync to Cloudflare PostgreSQL Realtime if cloud connected
+    if (!isOnline) {
+      // Store in local outbox queue for reliable delivery once reconnected
+      try {
+        const queue = JSON.parse(localStorage.getItem('findco_offline_chat_queue_v1') || '[]');
+        queue.push({ ...newMsg, roomId: selectedRoomId });
+        localStorage.setItem('findco_offline_chat_queue_v1', JSON.stringify(queue));
+      } catch (err) {
+        console.warn('[Offline Queue] LocalStorage failed:', err);
+      }
+      if (onShowToast) onShowToast("You are offline. Message queued in local outbox and will deliver automatically when reconnected.", "info");
+      return;
+    }
+
+    // Sync to Cloudflare D1 backend API if connected
     if (isSupabaseConfigured) {
       SupabaseService.sendMessage({
         room_id: selectedRoomId,
         sender_name: role === 'buddy' ? 'Buddy' : 'Client',
         sender_role: role === 'buddy' ? 'buddy' : 'client',
-        text: text.trim()
-      }).catch(err => console.warn('[Cloudflare Sync] message delivery fallback:', err));
+        text: cleanText,
+        client_temp_id: tempId,
+        media_type: mediaPayload?.mediaType || null,
+        media_url: mediaPayload?.mediaUrl || null,
+        media_metadata: mediaPayload?.mediaMetadata || null,
+        location_data: mediaPayload?.locationData || null
+      }).catch(err => {
+        console.warn('[Sync] message delivery fallback:', err);
+        setChats(prev => prev.map(c => {
+          if (c.id === selectedRoomId) {
+            return {
+              ...c,
+              messages: c.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m)
+            };
+          }
+          return c;
+        }));
+      });
+      return;
     }
 
     // Simulate companion typing and automated reply
@@ -168,9 +406,14 @@ export default function ChatsView({
       const replyMsg = {
         id: `m_${Date.now() + 1}`,
         sender: 'other',
-        text: `Got it! Sounds wonderful. Looking forward to meeting up and making it a memorable session!`,
+        text: mediaPayload?.mediaType === 'image'
+          ? "That looks incredible! Thanks for sharing the photo."
+          : mediaPayload?.mediaType === 'location'
+          ? `Perfect meetup spot! I know ${mediaPayload.locationData?.name || 'this venue'} well. See you there!`
+          : `Got it! Sounds wonderful. Looking forward to meeting up and making it a memorable session!`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isRead: true
+        isRead: true,
+        status: 'delivered'
       };
 
       setChats(prev => prev.map(c => {
@@ -184,6 +427,116 @@ export default function ChatsView({
         return c;
       }));
     }, 1800);
+  };
+
+  const handleRetryMessage = (msgToRetry) => {
+    if (!isOnline) {
+      if (onShowToast) onShowToast('Still offline. Cannot resend message yet.', 'error');
+      return;
+    }
+
+    setChats(prev => prev.map(c => {
+      if (c.id === selectedRoomId) {
+        return {
+          ...c,
+          messages: c.messages.map(m => m.id === msgToRetry.id ? { ...m, status: 'sending' } : m)
+        };
+      }
+      return c;
+    }));
+
+    if (isSupabaseConfigured) {
+      SupabaseService.sendMessage({
+        room_id: selectedRoomId,
+        sender_name: role === 'buddy' ? 'Buddy' : 'Client',
+        sender_role: role === 'buddy' ? 'buddy' : 'client',
+        text: msgToRetry.text,
+        client_temp_id: msgToRetry.clientTempId || msgToRetry.id,
+        media_type: msgToRetry.mediaType,
+        media_url: msgToRetry.mediaUrl,
+        media_metadata: msgToRetry.mediaMetadata,
+        location_data: msgToRetry.locationData
+      }).then(() => {
+        setChats(prev => prev.map(c => {
+          if (c.id === selectedRoomId) {
+            return {
+              ...c,
+              messages: c.messages.map(m => m.id === msgToRetry.id ? { ...m, status: 'delivered' } : m)
+            };
+          }
+          return c;
+        }));
+      }).catch(() => {
+        setChats(prev => prev.map(c => {
+          if (c.id === selectedRoomId) {
+            return {
+              ...c,
+              messages: c.messages.map(m => m.id === msgToRetry.id ? { ...m, status: 'failed' } : m)
+            };
+          }
+          return c;
+        }));
+      });
+    } else {
+      setTimeout(() => {
+        setChats(prev => prev.map(c => {
+          if (c.id === selectedRoomId) {
+            return {
+              ...c,
+              messages: c.messages.map(m => m.id === msgToRetry.id ? { ...m, status: 'delivered' } : m)
+            };
+          }
+          return c;
+        }));
+      }, 500);
+    }
+  };
+
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      if (onShowToast) onShowToast('Please select a valid image file (JPG, PNG, WebP).', 'error');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      if (onShowToast) onShowToast('Image size exceeds 10MB limit.', 'error');
+      return;
+    }
+
+    try {
+      if (onShowToast) onShowToast('Compressing image...', 'info');
+      const compressed = await compressImageFile(file, 1200, 1200, 0.75);
+      handleSendMessage('', {
+        mediaType: 'image',
+        mediaUrl: compressed.dataUrl,
+        mediaMetadata: {
+          width: compressed.width,
+          height: compressed.height,
+          originalName: compressed.originalName,
+          sizeBytes: compressed.sizeBytes
+        }
+      });
+      setShowAttachmentMenu(false);
+    } catch (err) {
+      console.error('Image compression failed:', err);
+      if (onShowToast) onShowToast('Failed to process image. Please try another file.', 'error');
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleShareVenue = (venue) => {
+    handleSendMessage('', {
+      mediaType: 'location',
+      locationData: {
+        name: venue.name,
+        address: venue.address,
+        mapsUrl: venue.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venue.name} ${venue.address}`)}`
+      }
+    });
+    setShowLocationModal(false);
+    setShowAttachmentMenu(false);
   };
 
   const handleCreateOffer = (e) => {
@@ -202,7 +555,7 @@ export default function ChatsView({
         title: offerTitle || 'Companionship Session',
         amount: Number(offerAmount),
         billingType: offerBillingType,
-        hours: Number(offerHours),
+        hours: Number(offerHours) || 2,
         venue: offerVenue,
         dateTime: offerDateTime,
         terms: offerTerms,
@@ -256,13 +609,14 @@ export default function ChatsView({
           return m;
         });
 
-        // Add confirmation message
+        // Add confirmation message - SECURE: PIN is strictly omitted from plaintext chat
         const confirmMsg = {
           id: `m_${Date.now()}`,
           sender: 'me',
-          text: `Proposal accepted! ₹800 locked in FindCo Escrow Vault. Our safety handshake PIN is [ ${handshakePin} ]. Looking forward to Saturday!`,
+          text: `Proposal accepted! ₹800 locked in FindCo Escrow Vault. Official safety voucher issued to client booking pass. Looking forward to Saturday!`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isRead: true
+          isRead: true,
+          status: 'delivered'
         };
 
         return {
@@ -510,6 +864,11 @@ export default function ChatsView({
                       setSelectedRoomId(chat.id);
                       if (setActiveRoomId) setActiveRoomId(chat.id);
                       setShowMobileChat(true);
+                      // Reset unread count locally and sync read receipts
+                      setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c));
+                      if (isSupabaseConfigured) {
+                        SupabaseService.markMessagesAsRead(chat.id, role).catch(console.warn);
+                      }
                     }}
                     style={{
                       width: '100%',
@@ -549,15 +908,11 @@ export default function ChatsView({
 
                     {/* Avatar with Status indicator */}
                     <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <img 
+                      <SafeAvatar 
                         src={chat.participant.avatar} 
                         alt={chat.participant.name}
-                        loading="lazy"
+                        size={44}
                         style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: '50%',
-                          objectFit: 'cover',
                           boxShadow: '0 2px 5px rgba(0,0,0,0.06)'
                         }}
                       />
@@ -706,11 +1061,10 @@ export default function ChatsView({
 
               {/* Avatar with pulse online dot */}
               <div style={{ position: 'relative', flexShrink: 0 }}>
-                <img 
+                <SafeAvatar 
                   src={activeChat.participant.avatar} 
                   alt={activeChat.participant.name}
-                  loading="lazy"
-                  style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }}
+                  size={42}
                 />
                 {activeChat.participant.isOnline && (
                   <span style={{
@@ -849,6 +1203,25 @@ export default function ChatsView({
               RBI COMPLIANT
             </span>
           </div>
+
+          {/* Real-time Connection Quality & Offline Mode Banner */}
+          {!isOnline && (
+            <div style={{
+              background: '#fef2f2',
+              borderBottom: '1px solid #fee2e2',
+              padding: '7px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.74rem',
+              color: '#991b1b'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <WifiOff size={13} color="#dc2626" />
+                <span><strong>Offline Mode:</strong> Network disconnected. Outgoing messages are queued safely in your local outbox and will deliver automatically when reconnected.</span>
+              </div>
+            </div>
+          )}
 
           {/* Messages Stream Container */}
           <div style={{
@@ -1140,10 +1513,11 @@ export default function ChatsView({
                 >
                   {/* Companion avatar for incoming messages */}
                   {!isMe && (
-                    <img 
+                    <SafeAvatar 
                       src={activeChat.participant.avatar} 
-                      alt=""
-                      style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, marginBottom: 2 }}
+                      alt={activeChat.participant.name}
+                      size={28}
+                      style={{ flexShrink: 0, marginBottom: 2 }}
                     />
                   )}
 
@@ -1161,9 +1535,78 @@ export default function ChatsView({
                     wordBreak: 'break-word',
                     position: 'relative'
                   }}>
-                    {msg.text}
+                    {/* Media: Compressed High-Res Image Preview */}
+                    {msg.mediaType === 'image' && msg.mediaUrl && (
+                      <div style={{ marginBottom: msg.text ? 8 : 4 }}>
+                        <img 
+                          src={msg.mediaUrl}
+                          alt="Meetup or cafe attachment"
+                          onClick={() => setActiveLightboxImage(msg.mediaUrl)}
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: 240,
+                            borderRadius: 10,
+                            objectFit: 'cover',
+                            cursor: 'pointer',
+                            display: 'block',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                        <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Eye size={10} />
+                          <span>Click image to expand full view</span>
+                        </div>
+                      </div>
+                    )}
 
-                    {/* Integrated timestamp inside or bottom */}
+                    {/* Media: Verified Meetup Venue Card */}
+                    {(msg.mediaType === 'location' || msg.locationData) && (
+                      <div style={{
+                        marginTop: 4,
+                        marginBottom: msg.text ? 8 : 4,
+                        padding: '10px 12px',
+                        borderRadius: 12,
+                        background: isMe ? 'rgba(0, 0, 0, 0.16)' : '#f8fafc',
+                        border: isMe ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #e2e8f0',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '0.84rem' }}>
+                          <MapPin size={15} color={isMe ? '#ffffff' : '#e11d48'} />
+                          <span>{msg.locationData?.name || 'Meetup Cafe'}</span>
+                        </div>
+                        <div style={{ fontSize: '0.74rem', opacity: 0.9 }}>
+                          {msg.locationData?.address}
+                        </div>
+                        <a
+                          href={msg.locationData?.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(msg.locationData?.name || 'Cafe')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            marginTop: 4,
+                            padding: '5px 10px',
+                            borderRadius: 6,
+                            background: isMe ? '#ffffff' : '#0f172a',
+                            color: isMe ? '#e11d48' : '#ffffff',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                            width: 'fit-content'
+                          }}
+                        >
+                          <span>Open in Google Maps</span>
+                          <ExternalLink size={11} />
+                        </a>
+                      </div>
+                    )}
+
+                    {msg.text && <div>{msg.text}</div>}
+
+                    {/* Integrated timestamp and 5-stage status indicator */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1174,7 +1617,12 @@ export default function ChatsView({
                       marginTop: 4
                     }}>
                       <span>{msg.time}</span>
-                      {isMe && <CheckCheck size={13} color="#ffffff" />}
+                      {isMe && (
+                        <MessageDeliveryStatus 
+                          status={msg.status} 
+                          onRetry={() => handleRetryMessage(msg)} 
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1257,87 +1705,204 @@ export default function ChatsView({
             })}
           </div>
 
-          {/* Message Input Box */}
-          <form 
-            onSubmit={e => { e.preventDefault(); handleSendMessage(); }}
-            style={{
-              padding: '12px 20px 14px 20px',
-              borderTop: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: '#ffffff'
-            }}
-          >
-            {/* Attachment Button */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onShowToast) onShowToast('Select cafe location or meetup spot from Google Maps.', 'info');
-              }}
-              title="Share meetup venue location or photos"
+          {/* Hidden File Input for Compressed Image Uploads */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            accept="image/*" 
+            style={{ display: 'none' }} 
+            onChange={handleImageFileChange} 
+          />
+
+          {/* Message Input Box with Attachment Sheet */}
+          <div style={{ position: 'relative' }}>
+            {/* Attachment Options Action Sheet */}
+            {showAttachmentMenu && (
+              <div 
+                className="modal-enter"
+                style={{
+                  position: 'absolute',
+                  bottom: 'calc(100% + 8px)',
+                  left: 20,
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 14,
+                  boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.15)',
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  zIndex: 100,
+                  minWidth: 230
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAttachmentMenu(false);
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    background: 'none',
+                    border: 'none',
+                    color: '#0f172a',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  <ImageIcon size={16} color="#e11d48" />
+                  <span>Upload Cafe / Meetup Photo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAttachmentMenu(false);
+                    setShowLocationModal(true);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    background: 'none',
+                    border: 'none',
+                    color: '#0f172a',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  <MapPin size={16} color="#059669" />
+                  <span>Share Meetup Spot / Cafe</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAttachmentMenu(false);
+                    setShowOfferModal(true);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    background: 'none',
+                    border: 'none',
+                    color: '#0f172a',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  <Receipt size={16} color="#3b82f6" />
+                  <span>Issue Official Escrow Quote</span>
+                </button>
+              </div>
+            )}
+
+            <form 
+              onSubmit={e => { e.preventDefault(); handleSendMessage(); }}
               style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                color: '#64748b',
-                width: 42,
-                height: 42,
-                borderRadius: 12,
+                padding: '12px 20px 14px 20px',
+                borderTop: '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0
+                gap: 10,
+                background: '#ffffff'
               }}
             >
-              <Paperclip size={18} />
-            </button>
+              {/* Attachment Button */}
+              <button
+                type="button"
+                onClick={() => setShowAttachmentMenu(prev => !prev)}
+                title="Attach photo, meetup spot, or quote"
+                style={{
+                  background: showAttachmentMenu ? '#fff1f2' : '#f8fafc',
+                  border: `1px solid ${showAttachmentMenu ? '#fecdd3' : '#e2e8f0'}`,
+                  color: showAttachmentMenu ? '#e11d48' : '#64748b',
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Paperclip size={18} />
+              </button>
 
-            {/* Input Capsule */}
-            <input 
-              type="text"
-              placeholder={`Message ${activeChat.participant.name}... (Press Enter to send)`}
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '12px 18px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: 14,
-                color: '#0f172a',
-                fontSize: '0.9rem',
-                outline: 'none',
-                transition: 'border-color 0.15s ease'
-              }}
-              onFocus={e => e.target.style.borderColor = '#e11d48'}
-              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-            />
+              {/* Input Capsule */}
+              <input 
+                type="text"
+                placeholder={`Message ${activeChat.participant.name}... (Press Enter to send)`}
+                value={inputText}
+                maxLength={1000}
+                onChange={e => setInputText(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '12px 18px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 14,
+                  color: '#0f172a',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  transition: 'border-color 0.15s ease'
+                }}
+                onFocus={e => e.target.style.borderColor = '#e11d48'}
+                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+              />
 
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={!inputText.trim()}
-              title="Send message"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: inputText.trim() ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)' : '#f1f5f9',
-                color: inputText.trim() ? '#ffffff' : '#94a3b8',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: inputText.trim() ? 'pointer' : 'default',
-                boxShadow: inputText.trim() ? '0 4px 12px rgba(225, 29, 72, 0.25)' : 'none',
-                transition: 'all 0.15s ease',
-                flexShrink: 0
-              }}
-            >
-              <Send size={18} />
-            </button>
-          </form>
+              {/* Send Button */}
+              <button
+                type="submit"
+                disabled={!inputText.trim()}
+                title="Send message"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: inputText.trim() ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)' : '#f1f5f9',
+                  color: inputText.trim() ? '#ffffff' : '#94a3b8',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: inputText.trim() ? 'pointer' : 'default',
+                  boxShadow: inputText.trim() ? '0 4px 12px rgba(225, 29, 72, 0.25)' : 'none',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0
+                }}
+              >
+                <Send size={18} />
+              </button>
+            </form>
+          </div>
 
         </div>
 
@@ -1377,14 +1942,11 @@ export default function ChatsView({
 
             {/* Profile Hero */}
             <div style={{ padding: '20px 18px', textAlign: 'center', borderBottom: '1px solid #f1f5f9' }}>
-              <img 
+              <SafeAvatar 
                 src={activeChat.participant.avatar} 
-                alt=""
+                alt={activeChat.participant.name}
+                size={80}
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
                   margin: '0 auto 12px auto',
                   border: '3px solid #ffffff',
                   boxShadow: '0 4px 14px rgba(0,0,0,0.1)'
@@ -1600,7 +2162,7 @@ export default function ChatsView({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                     Price (INR)
@@ -1623,7 +2185,29 @@ export default function ChatsView({
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                    Billing Structure
+                    Duration (Hours)
+                  </label>
+                  <input 
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={offerHours}
+                    onChange={e => setOfferHours(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.88rem',
+                      color: '#0f172a',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Billing Type
                   </label>
                   <select
                     value={offerBillingType}
@@ -1638,8 +2222,8 @@ export default function ChatsView({
                       outline: 'none'
                     }}
                   >
-                    <option value="trip">Per Full Trip / Outing</option>
-                    <option value="hourly">Hourly Rate (₹/hr)</option>
+                    <option value="trip">Per Trip</option>
+                    <option value="hourly">Hourly</option>
                   </select>
                 </div>
               </div>
@@ -1746,6 +2330,265 @@ export default function ChatsView({
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* 5. VERIFIED CAFE & MEETUP VENUE SELECTOR MODAL            */}
+      {/* ======================================================== */}
+      {showLocationModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2500,
+          padding: 16
+        }}>
+          <div 
+            className="modal-enter"
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              borderRadius: 20,
+              background: '#ffffff',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)',
+              overflow: 'hidden',
+              position: 'relative'
+            }}
+          >
+            <div style={{
+              background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+              padding: '20px 24px',
+              color: '#ffffff',
+              position: 'relative'
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowLocationModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: 18,
+                  right: 18,
+                  background: 'rgba(0, 0, 0, 0.2)',
+                  border: 'none',
+                  color: '#ffffff',
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={16} />
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <MapPin size={20} color="#ffffff" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
+                  Share Meetup Cafe Location
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.9)', margin: 0 }}>
+                FindCo safety policy mandates meeting strictly in public, verified cafes.
+              </p>
+            </div>
+
+            <div style={{ padding: '20px 24px', maxHeight: '60vh', overflowY: 'auto' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+                Recommended Verified Spots
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+                {[
+                  {
+                    name: 'Third Wave Coffee',
+                    address: '12th Main Rd, HAL 2nd Stage, Indiranagar, Bengaluru',
+                    rating: '4.8 ★'
+                  },
+                  {
+                    name: 'Blue Tokai Coffee Roasters',
+                    address: '80ft Road, 4th Block, Koramangala, Bengaluru',
+                    rating: '4.9 ★'
+                  },
+                  {
+                    name: 'Araku Coffee Flagship',
+                    address: '100ft Road, Defence Colony, Indiranagar, Bengaluru',
+                    rating: '4.9 ★'
+                  },
+                  {
+                    name: 'Starbucks Reserve',
+                    address: 'Church Street, Shanthala Nagar, Bengaluru',
+                    rating: '4.7 ★'
+                  }
+                ].map((venue, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleShareVenue(venue)}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      border: '1px solid #e2e8f0',
+                      background: '#f8fafc',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = '#ecfdf5';
+                      e.currentTarget.style.borderColor = '#a7f3d0';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = '#f8fafc';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>
+                        {venue.name}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: 2 }}>
+                        {venue.address}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      background: '#dcfce7',
+                      color: '#15803d',
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      flexShrink: 0
+                    }}>
+                      {venue.rating}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Custom Venue input */}
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', marginBottom: 8 }}>
+                  Or enter another cafe name:
+                </div>
+                <input 
+                  type="text"
+                  placeholder="e.g. Dyu Art Cafe, Koramangala"
+                  value={customVenueName}
+                  onChange={e => setCustomVenueName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 10,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.84rem',
+                    color: '#0f172a',
+                    marginBottom: 10
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={!customVenueName.trim()}
+                  onClick={() => {
+                    handleShareVenue({
+                      name: customVenueName.trim(),
+                      address: 'Bengaluru, Karnataka'
+                    });
+                    setCustomVenueName('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 10,
+                    background: customVenueName.trim() ? '#059669' : '#e2e8f0',
+                    color: customVenueName.trim() ? '#ffffff' : '#94a3b8',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: customVenueName.trim() ? 'pointer' : 'default'
+                  }}
+                >
+                  Share Custom Venue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 6. FULL-SCREEN HIGH-RES LIGHTBOX MODAL                   */}
+      {/* ======================================================== */}
+      {activeLightboxImage && (
+        <div 
+          onClick={() => setActiveLightboxImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.88)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            animation: 'fadeIn 0.2s ease'
+          }}
+        >
+          <button
+            onClick={() => setActiveLightboxImage(null)}
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 42,
+              height: 42,
+              color: '#ffffff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.15s ease'
+            }}
+          >
+            <X size={22} />
+          </button>
+          <img 
+            src={activeLightboxImage}
+            alt="Full resolution preview"
+            style={{
+              maxWidth: '92vw',
+              maxHeight: '88vh',
+              borderRadius: 14,
+              boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+              objectFit: 'contain'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Real-time Crisis & SOS Emergency Dispatch Modal */}
+      <EmergencySosModal 
+        isOpen={isSosModalOpen}
+        onClose={() => setIsSosModalOpen(false)}
+        currentUser={{ name: role === 'buddy' ? 'Companion' : 'Client' }}
+        onShowToast={onShowToast}
+      />
 
     </div>
   );
