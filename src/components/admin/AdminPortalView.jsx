@@ -38,9 +38,17 @@ import {
   seedInitialDataToSupabase,
   getActiveSupabaseConfig,
   saveCustomSupabaseConfig,
-  clearCustomSupabaseConfig,
-  COMPLETE_SCHEMA_SQL
+  clearCustomSupabaseConfig
 } from '../../lib/supabaseClient';
+
+// Canonical schema now lives in cloudflare/schema.sql (Cloudflare D1 / SQLite).
+// This panel copies the exact commands used to create + apply it.
+const D1_SCHEMA_COMMANDS = `# FindCo — Cloudflare D1 setup (canonical schema: cloudflare/schema.sql)
+npx wrangler d1 create findco
+# paste the printed database_id into wrangler.toml [[d1_databases]]
+npx wrangler d1 execute findco --remote --file cloudflare/schema.sql
+# first admin:
+npx wrangler d1 execute findco --remote --command "UPDATE users SET role='admin' WHERE email='you@example.com'"`;
 import { INITIAL_COMPANIONS } from '../../data/mockData';
 
 export default function AdminPortalView({
@@ -62,7 +70,7 @@ export default function AdminPortalView({
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [activeRejectTarget, setActiveRejectTarget] = useState(null);
 
-  // Cloud & Supabase / Vercel State
+  // Cloudflare cloud state
   const initialCloudConfig = getActiveSupabaseConfig();
   const [supabaseInputUrl, setSupabaseInputUrl] = useState(initialCloudConfig.url || '');
   const [supabaseInputKey, setSupabaseInputKey] = useState(initialCloudConfig.anonKey || '');
@@ -82,13 +90,13 @@ export default function AdminPortalView({
       const res = await checkSupabaseConnection();
       setCloudStatus(res);
       if (res.connected) {
-        onShowToast(`Supabase PostgreSQL connected (${res.latencyMs || 0}ms)`, 'success');
+        onShowToast(`Cloudflare D1 connected (${res.latencyMs || 0}ms)`, 'success');
       } else {
         onShowToast(res.reason || res.error || 'Operating in Local Storage fallback mode', 'info');
       }
     } catch (err) {
       setCloudStatus({ connected: false, error: err.message });
-      onShowToast('Supabase check failed: ' + err.message, 'error');
+      onShowToast('Cloud check failed: ' + err.message, 'error');
     } finally {
       setIsTestingCloud(false);
     }
@@ -97,7 +105,7 @@ export default function AdminPortalView({
   const handleSaveCloudCredentials = async (e) => {
     e.preventDefault();
     if (!supabaseInputUrl || !supabaseInputKey) {
-      onShowToast('Please provide both Supabase Project URL and Anon Key', 'error');
+      onShowToast('Backend credentials are managed in Cloudflare — in-app credential entry is disabled.', 'error');
       return;
     }
     const res = saveCustomSupabaseConfig(supabaseInputUrl, supabaseInputKey);
@@ -136,7 +144,7 @@ export default function AdminPortalView({
     setIsSeeding(true);
     try {
       const seeded = await seedInitialDataToSupabase(INITIAL_COMPANIONS);
-      onShowToast(`Successfully seeded ${seeded ? seeded.length : 'all'} verified companions to Supabase!`, 'success');
+      onShowToast(`Successfully seeded ${seeded ? seeded.length : 'all'} verified companions to Cloudflare D1!`, 'success');
       await handleAuditTables();
     } catch (err) {
       onShowToast('Seeding failed: ' + err.message, 'error');
@@ -146,9 +154,9 @@ export default function AdminPortalView({
   };
 
   const handleCopySchemaSql = () => {
-    navigator.clipboard.writeText(COMPLETE_SCHEMA_SQL);
+    navigator.clipboard.writeText(D1_SCHEMA_COMMANDS);
     setCopiedSql(true);
-    onShowToast('Copied full production schema SQL (all tables + RLS + seed) to clipboard!', 'success');
+    onShowToast('Copied the D1 setup commands (schema: cloudflare/schema.sql) to clipboard!', 'success');
     setTimeout(() => setCopiedSql(false), 3000);
   };
 
@@ -496,7 +504,7 @@ export default function AdminPortalView({
             { id: 'moderation', label: 'User & Companion Directory', count: companions.length, icon: UserCheck },
             { id: 'safety_ai', label: 'AI Safety & Flagged Chats', count: 3, icon: ShieldAlert },
             { id: 'escrow', label: 'Platform Revenue & Escrow', count: null, icon: Coins },
-            { id: 'cloud_infra', label: 'Supabase & Vercel Cloud', count: isSupabaseConfigured ? 'LIVE' : 'LOCAL', icon: Cloud },
+            { id: 'cloud_infra', label: 'Cloudflare Cloud', count: isSupabaseConfigured ? 'LIVE' : 'LOCAL', icon: Cloud },
             { id: 'audit_log', label: 'Immutable Audit Trail', count: auditLogs.length, icon: FileText }
           ].map(tab => {
             const Icon = tab.icon;
@@ -1092,17 +1100,17 @@ export default function AdminPortalView({
           </div>
         )}
 
-        {/* TAB 5: SUPABASE & VERCEL CLOUD INFRASTRUCTURE */}
+        {/* TAB 5: CLOUDFLARE CLOUD INFRASTRUCTURE */}
         {adminTab === 'cloud_infra' && (
           <div>
             <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h2 style={{ fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Cloud size={22} color="var(--color-primary)" />
-                  Supabase Backend & Vercel Deployment Console
+                  Cloudflare Backend & Deployment Console
                 </h2>
                 <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                  Manage the live cloud database, PostgreSQL real-time websockets, and Vercel edge deployment status for FindCo.
+                  Manage the live Cloudflare D1 database, Pages Functions API, and edge deployment status for FindCo.
                 </p>
               </div>
 
@@ -1146,8 +1154,8 @@ export default function AdminPortalView({
                       <Globe size={18} />
                     </div>
                     <div>
-                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Vercel Edge Network</h4>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Project: findco (swachta)</span>
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Cloudflare Pages Edge</h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Project: findco (Cloudflare Pages)</span>
                     </div>
                   </div>
                   <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: 20, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 700 }}>
@@ -1158,12 +1166,12 @@ export default function AdminPortalView({
                   Production URL:
                   <div style={{ marginTop: 4 }}>
                     <a 
-                      href="https://findco-sage.vercel.app" 
+                      href="https://dash.cloudflare.com" 
                       target="_blank" 
                       rel="noopener noreferrer"
                       style={{ color: 'var(--color-primary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
                     >
-                      <span>https://findco-sage.vercel.app</span>
+                      <span>Cloudflare Pages deployment</span>
                       <ExternalLink size={13} />
                     </a>
                   </div>
@@ -1173,7 +1181,7 @@ export default function AdminPortalView({
                 </div>
               </div>
 
-              {/* Card 2: Supabase Database Status */}
+              {/* Card 2: Cloudflare Database Status */}
               <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1181,8 +1189,8 @@ export default function AdminPortalView({
                       <Database size={18} />
                     </div>
                     <div>
-                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Supabase PostgreSQL</h4>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Realtime + RLS Enclave</span>
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Cloudflare D1</h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>SQLite + server-side authorization</span>
                     </div>
                   </div>
                   <span style={{ 
@@ -1214,7 +1222,7 @@ export default function AdminPortalView({
                     </div>
                     <div>
                       <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>Hallmark Table</h4>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>public.hallmark_credentials</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>hallmark_credentials (D1)</span>
                     </div>
                   </div>
                   <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: 20, background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontWeight: 700 }}>
@@ -1265,34 +1273,34 @@ export default function AdminPortalView({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Key size={18} color="var(--color-primary)" />
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Supabase Cloud Configurator (Live Link)</h3>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Cloudflare Backend Configurator</h3>
                 </div>
                 <a 
-                  href="https://supabase.com/dashboard" 
+                  href="https://dash.cloudflare.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   style={{ fontSize: '0.78rem', color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                 >
-                  <span>Open Supabase Dashboard</span>
+                  <span>Open Cloudflare Dashboard</span>
                   <ExternalLink size={12} />
                 </a>
               </div>
 
               <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
-                Production builds read Supabase credentials from environment variables only (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in Cloudflare Pages). Pasting credentials here is disabled for security — the fields below show the active env config.
+                FindCo is Cloudflare-only: the database is the D1 binding (DB) in wrangler.toml and secrets live in Cloudflare Pages environment variables. There are no database credentials to paste here — in-app credential config is disabled for security.
               </p>
 
               <form onSubmit={handleSaveCloudCredentials} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
-                      SUPABASE PROJECT URL (VITE_SUPABASE_URL)
+                      DATABASE BINDING (wrangler.toml)
                     </label>
                     <input 
                       type="text"
                       value={supabaseInputUrl}
                       onChange={(e) => setSupabaseInputUrl(e.target.value)}
-                      placeholder="https://your-project-ref.supabase.co"
+                      placeholder="DB (D1 database: findco)"
                       style={{
                         width: '100%',
                         padding: '10px 14px',
@@ -1308,13 +1316,13 @@ export default function AdminPortalView({
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
-                      SUPABASE ANON PUBLIC KEY (VITE_SUPABASE_ANON_KEY)
+                      PAGES PROJECT
                     </label>
                     <input 
                       type="password"
                       value={supabaseInputKey}
                       onChange={(e) => setSupabaseInputKey(e.target.value)}
-                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      placeholder="findco"
                       style={{
                         width: '100%',
                         padding: '10px 14px',
@@ -1336,7 +1344,7 @@ export default function AdminPortalView({
                     style={{ padding: '8px 20px', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: 6 }}
                   >
                     <Check size={14} />
-                    <span>Save & Connect Cloud DB</span>
+                    <span>Check Cloud DB</span>
                   </button>
 
                   <button
@@ -1390,12 +1398,12 @@ export default function AdminPortalView({
               )}
             </div>
 
-            {/* Supabase Schema SQL & Migration Guide */}
+            {/* Cloudflare Schema SQL & Migration Guide */}
             <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', marginBottom: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Terminal size={18} color="var(--color-primary)" />
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Supabase PostgreSQL Schema (supabase_schema.sql)</h3>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Cloudflare D1 Schema (cloudflare/schema.sql)</h3>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
@@ -1415,13 +1423,13 @@ export default function AdminPortalView({
                     style={{ padding: '6px 14px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6 }}
                   >
                     {copiedSql ? <Check size={14} /> : <Copy size={14} />}
-                    <span>{copiedSql ? 'Copied Full SQL!' : 'Copy Entire Schema SQL'}</span>
+                    <span>{copiedSql ? 'Copied Commands!' : 'Copy D1 Setup Commands'}</span>
                   </button>
                 </div>
               </div>
 
               <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
-                The complete SQL migration script creates all 6 tables (<code style={{ color: 'var(--color-primary)' }}>profiles</code> for Supabase Auth, <code style={{ color: 'var(--color-primary)' }}>companions</code>, <code style={{ color: 'var(--color-primary)' }}>activity_requests</code>, <code style={{ color: 'var(--color-primary)' }}>bookings</code>, <code style={{ color: 'var(--color-primary)' }}>chat_messages</code>, <code style={{ color: 'var(--color-primary)' }}>hallmark_credentials</code>), installs the <code style={{ color: 'var(--color-primary)' }}>handle_new_user()</code> auth trigger, enables Row Level Security (RLS), and configures Realtime websocket replication.
+                The canonical D1 schema (cloudflare/schema.sql, SQLite) creates all tables: <code style={{ color: 'var(--color-primary)' }}>users</code> (+ profiles view), <code style={{ color: 'var(--color-primary)' }}>sessions</code>, <code style={{ color: 'var(--color-primary)' }}>companions</code>, <code style={{ color: 'var(--color-primary)' }}>activity_requests</code>, <code style={{ color: 'var(--color-primary)' }}>bookings</code>, <code style={{ color: 'var(--color-primary)' }}>chat_messages</code>, <code style={{ color: 'var(--color-primary)' }}>hallmark_credentials</code>, <code style={{ color: 'var(--color-primary)' }}>payments</code> and <code style={{ color: 'var(--color-primary)' }}>subscriptions</code>. Authorization is enforced server-side in Pages Functions (there is no RLS in D1).
               </p>
 
               {showSqlViewer && (
@@ -1438,46 +1446,46 @@ export default function AdminPortalView({
                   marginBottom: 14,
                   whiteSpace: 'pre'
                 }}>
-                  {COMPLETE_SCHEMA_SQL}
+                  {D1_SCHEMA_COMMANDS}
                 </div>
               )}
 
               <div style={{ background: '#0a0e17', borderRadius: 'var(--radius-md)', padding: '16px', border: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '0.76rem', color: '#94a3b8', overflowX: 'auto' }}>
-                <div style={{ color: '#38bdf8', marginBottom: 4 }}>-- To apply in Supabase SQL Editor:</div>
-                <div>1. Log into your Supabase Dashboard: https://supabase.com/dashboard</div>
-                <div>2. Select your Project → SQL Editor → New query</div>
-                <div>3. Click "Copy Entire Schema SQL" above, paste into the query editor, and click "Run"</div>
-                <div>4. Copy your Project URL & Anon Key from Settings → API into the Configurator above</div>
+                <div style={{ color: '#38bdf8', marginBottom: 4 }}>-- To apply the D1 schema:</div>
+                <div>1. npx wrangler d1 create findco — paste the database_id into wrangler.toml</div>
+                <div>2. npx wrangler d1 execute findco --remote --file cloudflare/schema.sql</div>
+                <div>3. Click "Copy D1 Setup Commands" above for the full command list</div>
+                <div>4. Set secrets (RAZORPAY_*, GOOGLE_*) in Cloudflare Pages → Settings → Environment variables</div>
               </div>
             </div>
 
             {/* Environment Variables Sync Card */}
             <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 12 }}>
-                Connecting Supabase Credentials with Vercel Production
+                Cloudflare Pages Environment & Secrets
               </h3>
               <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
-                To link your Supabase database with the live Vercel deployment at <a href="https://findco-sage.vercel.app" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>findco-sage.vercel.app</a>, add the following variables:
+                Set these in Cloudflare Dashboard → Pages → findco → Settings → Environment variables:
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginBottom: 16 }}>
                 <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>VARIABLE 1</div>
-                  <code style={{ fontSize: '0.84rem', color: 'var(--color-primary)', fontWeight: 700 }}>VITE_SUPABASE_URL</code>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>e.g. https://your-project.supabase.co</div>
+                  <code style={{ fontSize: '0.84rem', color: 'var(--color-primary)', fontWeight: 700 }}>VITE_RAZORPAY_KEY_ID</code>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>Public Razorpay key id (build-time)</div>
                 </div>
 
                 <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>VARIABLE 2</div>
-                  <code style={{ fontSize: '0.84rem', color: 'var(--color-primary)', fontWeight: 700 }}>VITE_SUPABASE_ANON_KEY</code>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6...</div>
+                  <code style={{ fontSize: '0.84rem', color: 'var(--color-primary)', fontWeight: 700 }}>RAZORPAY_KEY_SECRET / GOOGLE_CLIENT_SECRET</code>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>Server-only secrets — never prefix with VITE_</div>
                 </div>
               </div>
 
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 CLI Command to sync:
                 <code style={{ display: 'block', background: '#0a0e17', padding: '10px 14px', borderRadius: 8, marginTop: 6, color: '#38bdf8' }}>
-                  vercel env add VITE_SUPABASE_URL production,preview,development
+                  npx wrangler pages secret put RAZORPAY_KEY_SECRET --project-name findco
                 </code>
               </div>
             </div>

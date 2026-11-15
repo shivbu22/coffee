@@ -4,6 +4,23 @@ pages_build_output_dir = "dist"
 
 # Deploy: Cloudflare Pages (Git integration or `npx wrangler pages deploy dist`)
 # Build command: npm run build   Output directory: dist
+#
+# D1 setup (one time):
+#   npx wrangler d1 create findco
+#   -> paste the printed database_id below, replacing REPLACE_AFTER_WRANGLER_D1_CREATE
+#   npx wrangler d1 execute findco --remote --file cloudflare/schema.sql
+# Local dev: npm run build && npx wrangler pages dev dist --d1 DB --port 8788
+#   (apply the schema locally first: npx wrangler d1 execute DB --local --file cloudflare/schema.sql)
+#
 # Set in Cloudflare Dashboard -> Pages -> findco -> Settings -> Environment variables:
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_RAZORPAY_KEY_ID  (public, build-time)
-#   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY (secrets, server-only — NEVER prefix secrets with VITE_)
+#   VITE_RAZORPAY_KEY_ID  (public, build-time)
+#   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET (secrets, server-only)
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (optional, enables Google sign-in)
+#   RESEND_API_KEY, OTP_FROM_EMAIL (optional, enables email OTP delivery)
+#   ENVIRONMENT=production (hides dev OTP codes in production)
+# NEVER prefix secrets with VITE_ (VITE_ vars are shipped to the browser).
+
+[[d1_databases]]
+binding = "DB"
+database_name = "findco"
+database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"

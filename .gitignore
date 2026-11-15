@@ -35,3 +35,4 @@ node_modules/
 .venv/
 venv/
 __pycache__/
+.wrangler/

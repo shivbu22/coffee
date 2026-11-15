@@ -1,9 +1,9 @@
 // POST /api/payments/webhook
 // Verifies X-Razorpay-Signature against the RAW body with RAZORPAY_WEBHOOK_SECRET.
-// Configure this URL in Razorpay Dashboard -> Webhooks. Fulfilment (writing to
-// Supabase payments/subscriptions with SUPABASE_SERVICE_ROLE_KEY) belongs here
-// once the service-role key is set in Cloudflare env — never expose it client-side.
+// On payment.captured, fulfils into D1 payments + subscriptions when env.DB is
+// bound; without a DB binding it acknowledges log-only (previous behaviour).
 import { hmacSha256Hex, timingSafeEqual, json } from './_plans.js';
+import { fulfilPayment } from './_fulfil.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -16,11 +16,20 @@ export async function onRequestPost(context) {
   let event;
   try { event = JSON.parse(rawBody); } catch { return json({ error: 'Invalid JSON.' }, 400); }
 
-  // Acknowledge known events. TODO (server-only): on payment.captured /
-  // subscription.activated, upsert into public.payments / public.subscriptions
-  // using SUPABASE_SERVICE_ROLE_KEY via the Supabase REST API.
   const type = event?.event || 'unknown';
-  return json({ received: true, event: type });
+  let fulfilled = false;
+  if (type === 'payment.captured' || type === 'payment.authorized') {
+    const entity = event?.payload?.payment?.entity || {};
+    try {
+      fulfilled = await fulfilPayment(env, {
+        orderId: entity.order_id, paymentId: entity.id,
+        planId: entity.notes?.planId || null,
+        amountPaise: Number.isFinite(entity.amount) ? entity.amount : undefined,
+        userId: null, // webhook carries no FindCo user id; verify.js links the user
+      });
+    } catch (e) { console.warn('[payments] webhook fulfil failed:', e.message); }
+  }
+  return json({ received: true, event: type, fulfilled });
 }
 
 export async function onRequest(context) {

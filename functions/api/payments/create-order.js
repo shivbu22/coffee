@@ -2,6 +2,7 @@
 // Creates a Razorpay order. Amount/plan are validated server-side.
 // Secrets (server-only Cloudflare env): RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET
 import { priceFor, json } from './_plans.js';
+import { getSessionUser } from '../../_lib/auth.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -28,6 +29,15 @@ export async function onRequestPost(context) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) return json({ error: data?.error?.description || 'Razorpay order creation failed.' }, 502);
+  // Record the pending payment in D1 when bound (best effort; never blocks checkout).
+  if (env.DB && data.id) {
+    try {
+      const user = await getSessionUser(request, env);
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO payments (id, user_id, razorpay_order_id, plan_id, amount_paise, status) VALUES (?1, ?2, ?3, ?4, ?5, 'created')"
+      ).bind(crypto.randomUUID(), user?.id || null, data.id, body.planId, priced.amountPaise).run();
+    } catch (e) { console.warn('[payments] create-order D1 record failed:', e.message); }
+  }
   return json({ orderId: data.id, amount: data.amount, currency: data.currency, planName: priced.plan.name });
 }
 

@@ -1,608 +1,304 @@
-import { createClient } from '@supabase/supabase-js';
+// =========================================================================
+// FindCo Cloudflare API client (compat shim).
+//
+// This module used to be the Supabase client. FindCo is now Cloudflare-only:
+// Pages Functions + D1 (see functions/ and cloudflare/schema.sql). The
+// exported names (SupabaseAuthService, SupabaseService, ...) are kept so the
+// existing components keep working unchanged — they now talk to /api/*.
+// Authorization lives on the server (session cookie + per-handler checks);
+// this client holds no keys and no secrets.
+// =========================================================================
 
-// Production: Supabase config comes from env vars ONLY.
-// The previous runtime path that let a user paste a custom Supabase URL /
-// anon key in the UI and persisted it in localStorage has been removed —
-// anyone with browser access could point the app at another project.
-export function getActiveSupabaseConfig() {
-  const url = import.meta.env.VITE_SUPABASE_URL || '';
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const isConfigured = Boolean(url && anonKey && url.startsWith('https://') && !url.includes('placeholder') && !anonKey.includes('placeholder'));
-  return { url, anonKey, isConfigured, isCustom: false };
-}
+// "Backend configured" = the Cloudflare API is the backend. Set
+// VITE_BACKEND_MODE=local to force offline/demo mode in the UI.
+export const isSupabaseConfigured = import.meta.env.VITE_BACKEND_MODE !== 'local';
 
-let activeConfig = getActiveSupabaseConfig();
-export let isSupabaseConfigured = activeConfig.isConfigured;
-
-function initClient() {
-  activeConfig = getActiveSupabaseConfig();
-  isSupabaseConfigured = activeConfig.isConfigured;
-  if (!isSupabaseConfigured) return null;
-  return createClient(activeConfig.url, activeConfig.anonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
-    realtime: { params: { eventsPerSecond: 10 } },
+async function api(path, { method = 'GET', body } = {}) {
+  const res = await fetch(path, {
+    method,
+    credentials: 'same-origin',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+async function apiOrNull(path, opts) {
+  try { return await api(path, opts); } catch { return null; }
 }
 
-export let supabase = initClient();
+// --- Session state: in-memory user + listener set (mirrors the old shape) ---
+let currentUser = null; // session-shaped user: { id, email, phone, user_metadata }
+let sessionChecked = false;
+const listeners = new Set();
 
-/**
- * Redirect browser directly to Supabase Cloud Dashboard login
- */
+function toSessionUser(apiUser) {
+  if (!apiUser) return null;
+  return {
+    id: apiUser.id,
+    email: apiUser.email || '',
+    phone: apiUser.phone || '',
+    user_metadata: {
+      full_name: apiUser.full_name || '',
+      role: apiUser.role || 'client',
+      phone: apiUser.phone || '',
+      city: apiUser.city || 'Bengaluru',
+      avatar_url: apiUser.avatar_url || '',
+      avatar: apiUser.avatar_url || '',
+    },
+  };
+}
+function notify(event) {
+  const session = currentUser ? { user: currentUser } : null;
+  listeners.forEach((cb) => { try { cb(event, session); } catch {} });
+}
+function setSession(apiUser, event) {
+  currentUser = toSessionUser(apiUser);
+  sessionChecked = true;
+  notify(event || (currentUser ? 'SIGNED_IN' : 'SIGNED_OUT'));
+  return currentUser ? { user: currentUser } : null;
+}
+async function fetchMe() {
+  const data = await apiOrNull('/api/auth/me');
+  if (data?.user) return setSession(data.user, 'INITIAL_SESSION');
+  currentUser = null; sessionChecked = true;
+  return null;
+}
+
+export const SupabaseAuthService = {
+  async getSession() {
+    if (currentUser) return { user: currentUser };
+    if (!isSupabaseConfigured) return null;
+    if (!sessionChecked) { const s = await fetchMe(); return s; }
+    return null;
+  },
+  async signUpWithEmail({ email, password, fullName, role = 'client', phone = '', city = 'Bengaluru' }) {
+    const data = await api('/api/auth/signup', { method: 'POST', body: { email, password, fullName, role, phone, city } });
+    const session = setSession(data.user, 'SIGNED_IN');
+    return { user: session.user, session };
+  },
+  async signInWithEmail(email, password) {
+    const data = await api('/api/auth/login', { method: 'POST', body: { email, password } });
+    const session = setSession(data.user, 'SIGNED_IN');
+    return { user: session.user, session };
+  },
+  async signInWithOtp(emailOrPhone) {
+    // Creates an OTP on the server. In non-production the response carries
+    // devCode (no SMS/email provider configured yet); production requires
+    // RESEND_API_KEY (email) or an SMS provider and otherwise errors clearly.
+    return api('/api/auth/otp/request', { method: 'POST', body: { identifier: emailOrPhone } });
+  },
+  async verifyOtp({ phoneOrEmail, token }) {
+    const data = await api('/api/auth/otp/verify', { method: 'POST', body: { identifier: phoneOrEmail, code: token } });
+    const session = setSession(data.user, 'SIGNED_IN');
+    return { user: session.user, session };
+  },
+  async signInWithGoogle() {
+    // Full-page redirect into the server OAuth flow (env-gated server-side).
+    window.location.href = '/api/auth/google/start';
+    return { provider: 'google' };
+  },
+  async signOut() {
+    await apiOrNull('/api/auth/logout', { method: 'POST', body: {} });
+    currentUser = null; sessionChecked = true;
+    notify('SIGNED_OUT');
+  },
+  onAuthStateChange(callback) {
+    listeners.add(callback);
+    if (!sessionChecked && isSupabaseConfigured) fetchMe().catch(() => {});
+    return () => { listeners.delete(callback); };
+  },
+};
+
+// --- Realtime compat (polling) -------------------------------------------
+// The old backend used websockets. The shim polls: subscribeToRoom diffs
+// message ids every 3s; supabase.channel(...).on('postgres_changes', ...)
+// polls the requests feed every 5s. removeChannel stops the poller.
+function makePollingChannel(name, pollFn) {
+  const channel = {
+    name, _cb: null, _timer: null,
+    on(_event, _filter, cb) { channel._cb = cb; return channel; },
+    subscribe() { channel._timer = pollFn(channel); return channel; },
+    _stop() { if (channel._timer) clearInterval(channel._timer); channel._timer = null; },
+  };
+  return channel;
+}
+export const supabase = {
+  auth: {
+    signOut: () => SupabaseAuthService.signOut(),
+    getSession: () => SupabaseAuthService.getSession(),
+  },
+  channel(name) {
+    return makePollingChannel(name, (channel) => {
+      let known = null;
+      const tick = async () => {
+        const data = await apiOrNull('/api/requests');
+        const rows = data?.requests || [];
+        if (known === null) { known = new Set(rows.map((r) => r.id)); return; }
+        for (const row of rows) {
+          if (!known.has(row.id)) { known.add(row.id); channel._cb?.({ new: row }); }
+        }
+      };
+      tick();
+      return setInterval(tick, 5000);
+    });
+  },
+  removeChannel(channel) { channel?._stop?.(); },
+};
+
+// --- Data services ---------------------------------------------------------
+export const SupabaseService = {
+  async getProfile(_userId) {
+    if (!isSupabaseConfigured) return null;
+    const data = await apiOrNull('/api/profile');
+    return data?.profile || null; // server returns the session user's own row only
+  },
+  async updateProfile(_userId, updates) {
+    const data = await api('/api/profile', { method: 'PUT', body: updates });
+    return data.profile;
+  },
+  async getCompanions(cityFilter = 'All Cities') {
+    if (!isSupabaseConfigured) return null;
+    const q = cityFilter && cityFilter !== 'All Cities' ? `?city=${encodeURIComponent(cityFilter)}` : '';
+    const data = await api(`/api/companions${q}`);
+    return (data.companions || []).map(formatSupabaseCompanion);
+  },
+  async getRequests() {
+    if (!isSupabaseConfigured) return null;
+    const data = await apiOrNull('/api/requests');
+    if (!data) return null;
+    return (data.requests || []).map(formatSupabaseRequest);
+  },
+  async createRequest(requestData) {
+    const data = await api('/api/requests', { method: 'POST', body: requestData });
+    return formatSupabaseRequest(data.request);
+  },
+  async getBookings(_userId) {
+    if (!isSupabaseConfigured) return null;
+    const data = await apiOrNull('/api/bookings');
+    return data ? (data.bookings || []) : null;
+  },
+  async createBooking(bookingData) {
+    const data = await api('/api/bookings', { method: 'POST', body: bookingData });
+    return data.booking;
+  },
+  async verifyBookingPin(bookingId, pin) {
+    const data = await api('/api/bookings/verify-pin', { method: 'POST', body: { bookingId, pin } });
+    return data.booking;
+  },
+  async getMessages(roomId) {
+    if (!isSupabaseConfigured) return null;
+    const data = await apiOrNull(`/api/messages?roomId=${encodeURIComponent(roomId)}`);
+    return data ? (data.messages || []) : null;
+  },
+  async sendMessage(messageData) {
+    const data = await api('/api/messages', { method: 'POST', body: messageData });
+    return data.message;
+  },
+  subscribeToRoom(roomId, onNewMessage) {
+    if (!isSupabaseConfigured) return () => {};
+    let known = null;
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      const msgs = await SupabaseService.getMessages(roomId).catch(() => null);
+      if (!msgs) return;
+      if (known === null) { known = new Set(msgs.map((m) => m.id)); return; }
+      for (const m of msgs) {
+        if (!known.has(m.id)) { known.add(m.id); onNewMessage(m); }
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 3000);
+    return () => { stopped = true; clearInterval(timer); };
+  },
+  async registerHallmarkCredential(credential) {
+    const data = await api('/api/hallmark', { method: 'POST', body: credential });
+    return data.credential;
+  },
+  async verifyHallmarkOnCloud(hash) {
+    const data = await apiOrNull(`/api/hallmark/${encodeURIComponent(hash)}`);
+    return data?.credential || null;
+  },
+};
+
+// --- Admin Portal health helpers (backed by GET /api/health) ---------------
+export async function checkSupabaseConnection() {
+  const start = performance.now();
+  const data = await apiOrNull('/api/health');
+  const latencyMs = Math.round(performance.now() - start);
+  if (!data?.db) {
+    return { connected: false, reason: 'Cloudflare D1 backend not reachable.', mode: 'Local Storage Fallback Mode', url: null };
+  }
+  return { connected: true, tablesNeedInit: false, latencyMs, recordsFound: data.detail?.companions?.count || 0, message: `Cloudflare D1 connection healthy (${latencyMs}ms latency)`, mode: 'Live Cloud Backend' };
+}
+export async function checkAllTables() {
+  const empty = { ready: false, count: 0 };
+  const data = await apiOrNull('/api/health');
+  if (!data?.detail) return { profiles: empty, companions: empty, activity_requests: empty, bookings: empty, chat_messages: empty, hallmark_credentials: empty };
+  const d = data.detail;
+  return {
+    profiles: d.users || empty,
+    companions: d.companions || empty,
+    activity_requests: d.activity_requests || empty,
+    bookings: d.bookings || empty,
+    chat_messages: d.chat_messages || empty,
+    hallmark_credentials: d.hallmark_credentials || empty,
+  };
+}
+export async function seedInitialDataToSupabase(initialCompanions = []) {
+  const out = [];
+  for (const c of initialCompanions) {
+    const data = await api('/api/companions', {
+      method: 'POST',
+      body: {
+        name: c.name, age: c.age || 24, gender: c.gender || 'Female', city: c.city, area: c.area,
+        hourly_rate: c.hourlyRate || 500, trip_rate: c.tripRate || 2000, services: c.services || [],
+        languages: c.languages || ['English', 'Hindi'], bio: c.bio || '', avatar: c.avatar || '',
+        is_star: Boolean(c.isStar), is_online: Boolean(c.isOnline), completed_hangouts: c.completedHangouts || 10,
+        hallmark_id: c.hallmarkId || `HLM-${(c.city || 'BLR').slice(0, 3).toUpperCase()}-9901`,
+      },
+    });
+    out.push(data.companion);
+  }
+  return out;
+}
+
+// --- Legacy config helpers (kept import-compatible; backend is env-only) ---
+export function getActiveSupabaseConfig() {
+  return { url: '', anonKey: '', isConfigured: isSupabaseConfigured, isCustom: false, backend: 'cloudflare' };
+}
 export function redirectToSupabaseDashboard() {
-  window.location.href = 'https://supabase.com/dashboard/sign-in';
+  window.location.href = 'https://dash.cloudflare.com';
 }
-
-/**
- * @deprecated Removed in production: custom Supabase config via UI is disabled.
- * Configure VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in the environment instead.
- */
 export function saveCustomSupabaseConfig() {
-  return { success: false, error: 'Custom Supabase config is disabled in production. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment (Cloudflare Pages settings) and redeploy.' };
+  return { success: false, error: 'Backend configuration is managed in Cloudflare (D1 binding + Pages env vars). In-app credential config is disabled.' };
 }
 export function clearCustomSupabaseConfig() {
-  try { localStorage.removeItem('findco_custom_supabase_url'); localStorage.removeItem('findco_custom_supabase_anon_key'); } catch {}
   return { success: true, isConfigured: isSupabaseConfigured };
 }
 
-/**
- * Check live connection status to Supabase backend with latency benchmarking
- */
-export async function checkSupabaseConnection() {
-  const currentConfig = getActiveSupabaseConfig();
-  if (!currentConfig.isConfigured || !supabase) {
-    return {
-      connected: false,
-      reason: 'No live credentials configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the environment.',
-      mode: 'Local Storage Fallback Mode',
-      url: currentConfig.url || null
-    };
-  }
-
-  const startTime = performance.now();
-  try {
-    // Probe the companions table with a limit 1 query
-    const { data, error } = await supabase.from('companions').select('id, name').limit(1);
-    const latency = Math.round(performance.now() - startTime);
-
-    if (error) {
-      // If table doesn't exist yet, we still know the credentials authenticated to Supabase
-      if (error.code === '42P01' || error.message.includes('relation "public.companions" does not exist')) {
-        return {
-          connected: true,
-          tablesNeedInit: true,
-          latencyMs: latency,
-          error: error.message,
-          hint: 'Connected to Supabase project! Database tables need initialization via supabase_schema.sql',
-          mode: 'Supabase Project Authenticated (Empty DB)'
-        };
-      }
-      return {
-        connected: false,
-        latencyMs: latency,
-        error: error.message,
-        hint: 'Error communicating with Supabase PostgreSQL',
-        mode: 'Supabase Error'
-      };
-    }
-
-    return {
-      connected: true,
-      tablesNeedInit: false,
-      latencyMs: latency,
-      recordsFound: data ? data.length : 0,
-      message: `Supabase PostgreSQL connection healthy (${latency}ms latency)`,
-      mode: 'Live Cloud Backend'
-    };
-  } catch (err) {
-    return {
-      connected: false,
-      error: err.message,
-      mode: 'Local Storage Fallback Mode'
-    };
-  }
-}
-
-/**
- * Check health across all 5 FindCo tables
- */
-export async function checkAllTables() {
-  if (!isSupabaseConfigured || !supabase) {
-    return {
-      profiles: { ready: false, count: 0 },
-      companions: { ready: false, count: 0 },
-      activity_requests: { ready: false, count: 0 },
-      bookings: { ready: false, count: 0 },
-      chat_messages: { ready: false, count: 0 },
-      hallmark_credentials: { ready: false, count: 0 }
-    };
-  }
-
-  const tables = ['profiles', 'companions', 'activity_requests', 'bookings', 'chat_messages', 'hallmark_credentials'];
-  const results = {};
-
-  for (const table of tables) {
-    try {
-      const { data, error, count } = await supabase.from(table).select('id', { count: 'exact', head: true });
-      results[table] = {
-        ready: !error,
-        count: count || 0,
-        error: error ? error.message : null
-      };
-    } catch (e) {
-      results[table] = { ready: false, count: 0, error: e.message };
-    }
-  }
-
-  return results;
-}
-
-/**
- * Seed initial companion records to Supabase PostgreSQL
- */
-export async function seedInitialDataToSupabase(initialCompanions = []) {
-  if (!isSupabaseConfigured || !supabase) {
-    throw new Error('Supabase client is not configured.');
-  }
-
-  const prepared = initialCompanions.map(c => ({
-    name: c.name,
-    age: c.age || 24,
-    gender: c.gender || 'Female',
-    city: c.city,
-    area: c.area,
-    hourly_rate: c.hourlyRate || 500,
-    trip_rate: c.tripRate || 2000,
-    rating: c.rating || 4.9,
-    reviews_count: c.reviewsCount || 20,
-    services: c.services || [],
-    languages: c.languages || ['English', 'Hindi'],
-    bio: c.bio || '',
-    avatar: c.avatar || '',
-    is_star: Boolean(c.isStar),
-    is_online: Boolean(c.isOnline),
-    completed_hangouts: c.completedHangouts || 10,
-    hallmark_id: c.hallmarkId || `HLM-${c.city.slice(0, 3).toUpperCase()}-9901`,
-    kyc_status: 'VERIFIED'
-  }));
-
-  const { data, error } = await supabase.from('companions').upsert(prepared, { onConflict: 'name' }).select();
-  if (error) throw error;
-  return data;
-}
-
-/**
- * Complete raw SQL string for the entire FindCo schema (for 1-click clipboard copy)
- */
-export const COMPLETE_SCHEMA_SQL = `-- =========================================================================
--- FINDCO SUPABASE PRODUCTION DATABASE SCHEMA, RLS POLICIES & SEED DATA
--- Dedicated Social Companionship Platform with Hallmark Cryptographic Trust
--- =========================================================================
-
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- 0. USER PROFILES & SUPABASE AUTH ENCLAVE
--- Links 1:1 with auth.users(id) created by Supabase Auth (Email, Phone OTP, Google OAuth)
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT,
-    full_name TEXT,
-    avatar_url TEXT DEFAULT 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces',
-    phone TEXT,
-    role TEXT DEFAULT 'client' CHECK (role IN ('client', 'buddy', 'admin')),
-    city TEXT DEFAULT 'Bengaluru',
-    is_aadhaar_verified BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Automatic Auth Trigger: Whenever a user signs up via Supabase Auth,
--- seamlessly create or update their public.profiles record
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.profiles (id, email, full_name, avatar_url, phone, role, city)
-    VALUES (
-        NEW.id,
-        NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(COALESCE(NEW.email, 'User'), '@', 1)),
-        COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'avatar', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces'),
-        COALESCE(NEW.raw_user_meta_data->>'phone', NEW.phone, ''),
-        COALESCE(NEW.raw_user_meta_data->>'role', 'client'),
-        COALESCE(NEW.raw_user_meta_data->>'city', 'Bengaluru')
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        email = EXCLUDED.email,
-        full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
-        avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
-        role = COALESCE(EXCLUDED.role, public.profiles.role),
-        city = COALESCE(EXCLUDED.city, public.profiles.city),
-        updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- 1. COMPANIONS / VERIFIED BUDDY PROFILES TABLE
-CREATE TABLE IF NOT EXISTS public.companions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    name TEXT NOT NULL,
-    age INT NOT NULL DEFAULT 24 CHECK (age >= 18),
-    gender TEXT DEFAULT 'Female',
-    city TEXT NOT NULL,
-    area TEXT NOT NULL,
-    hourly_rate INT NOT NULL CHECK (hourly_rate >= 300 AND hourly_rate <= 3000),
-    trip_rate INT DEFAULT 2000,
-    rating NUMERIC(3,2) DEFAULT 4.90,
-    reviews_count INT DEFAULT 25,
-    services TEXT[] NOT NULL DEFAULT '{}',
-    languages TEXT[] NOT NULL DEFAULT '{}',
-    bio TEXT,
-    avatar TEXT,
-    is_star BOOLEAN DEFAULT false,
-    is_online BOOLEAN DEFAULT true,
-    completed_hangouts INT DEFAULT 12,
-    kyc_status TEXT DEFAULT 'VERIFIED' CHECK (kyc_status IN ('PENDING', 'VERIFIED', 'REJECTED')),
-    hallmark_id TEXT,
-    aadhaar_hash TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 2. ACTIVITY REQUESTS TABLE (Client Feed Hangout Posts)
-CREATE TABLE IF NOT EXISTS public.activity_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id TEXT,
-    client_name TEXT NOT NULL,
-    client_avatar TEXT,
-    activity TEXT NOT NULL,
-    city TEXT NOT NULL,
-    area TEXT NOT NULL,
-    date_time TEXT NOT NULL,
-    budget INT NOT NULL,
-    duration INT NOT NULL DEFAULT 2,
-    gender_pref TEXT DEFAULT 'Any Gender',
-    description TEXT,
-    status TEXT DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'MATCHED', 'COMPLETED', 'CANCELLED')),
-    responses_count INT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 3. BOOKINGS & DUAL-HANDSHAKE ESCROW TABLE
-CREATE TABLE IF NOT EXISTS public.bookings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id TEXT,
-    client_name TEXT NOT NULL,
-    buddy_id TEXT,
-    buddy_name TEXT NOT NULL,
-    activity TEXT NOT NULL,
-    date TEXT NOT NULL,
-    time TEXT NOT NULL,
-    hours INT NOT NULL DEFAULT 2,
-    hourly_rate INT NOT NULL,
-    total_amount INT NOT NULL,
-    escrow_status TEXT DEFAULT 'LOCKED' CHECK (escrow_status IN ('PENDING', 'LOCKED', 'RELEASED', 'REFUNDED')),
-    handshake_pin TEXT NOT NULL CHECK (length(handshake_pin) = 4),
-    pin_verified BOOLEAN DEFAULT false,
-    completed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 4. REAL-TIME CHAT MESSAGES TABLE
-CREATE TABLE IF NOT EXISTS public.chat_messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    room_id TEXT NOT NULL,
-    sender_id TEXT,
-    sender_name TEXT NOT NULL,
-    sender_role TEXT NOT NULL CHECK (sender_role IN ('client', 'buddy', 'system')),
-    text TEXT NOT NULL,
-    counter_offer JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 5. HALLMARK CRYPTOGRAPHIC TRUST & AUDIT LEDGER
-CREATE TABLE IF NOT EXISTS public.hallmark_credentials (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    companion_name TEXT NOT NULL,
-    fingerprint_hash TEXT UNIQUE NOT NULL,
-    uidai_enclave_ref TEXT NOT NULL,
-    clearance_ref TEXT NOT NULL,
-    merkle_root TEXT NOT NULL,
-    aadhaar_masked TEXT NOT NULL,
-    verified_at TIMESTAMPTZ DEFAULT NOW(),
-    expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '365 days'),
-    trust_grade TEXT DEFAULT 'SOVEREIGN_A+'
-);
-
--- Enable Row Level Security (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.companions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activity_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.hallmark_credentials ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Public can view member profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Public can view verified companions" ON public.companions FOR SELECT USING (true);
-CREATE POLICY "Public can insert companion profiles" ON public.companions FOR INSERT WITH CHECK (true);
-CREATE POLICY "Companions can update their own profile" ON public.companions FOR UPDATE USING (true);
-
-CREATE POLICY "Public can view activity requests" ON public.activity_requests FOR SELECT USING (true);
-CREATE POLICY "Public can insert activity requests" ON public.activity_requests FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public can update activity requests" ON public.activity_requests FOR UPDATE USING (true);
-
-CREATE POLICY "Parties can view their own bookings" ON public.bookings FOR SELECT 
-    USING (auth.uid()::text = client_id OR auth.uid()::text = buddy_id OR auth.role() = 'service_role');
-CREATE POLICY "Clients can create bookings" ON public.bookings FOR INSERT 
-    WITH CHECK (auth.uid()::text = client_id OR auth.role() = 'service_role');
-CREATE POLICY "Parties can update booking status" ON public.bookings FOR UPDATE 
-    USING (auth.uid()::text = client_id OR auth.uid()::text = buddy_id OR auth.role() = 'service_role');
-
-CREATE POLICY "Room participants can view messages" ON public.chat_messages FOR SELECT 
-    USING (auth.uid() IS NOT NULL);
-CREATE POLICY "Authenticated users can insert room messages" ON public.chat_messages FOR INSERT 
-    WITH CHECK (auth.uid()::text = sender_id OR auth.role() = 'service_role');
-
-CREATE POLICY "Public can audit hallmark credentials" ON public.hallmark_credentials FOR SELECT USING (true);
-CREATE POLICY "Service role can manage hallmark records" ON public.hallmark_credentials FOR INSERT WITH CHECK (auth.role() = 'service_role');
-
--- Enable Realtime WebSockets
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'chat_messages') THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'activity_requests') THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.activity_requests;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'bookings') THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.bookings;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-    END IF;
-END $$;
-`;
-
-/**
- * Supabase Data Access Services
- */
-export const SupabaseService = {
-  // --- USER PROFILES & AUTH ---
-  async getProfile(userId) {
-    if (!isSupabaseConfigured || !supabase || !userId) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error) return null;
-    return data;
-  },
-
-  async updateProfile(userId, updates) {
-    if (!isSupabaseConfigured || !supabase || !userId) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  // --- COMPANIONS ---
-  async getCompanions(cityFilter = 'All Cities') {
-    if (!isSupabaseConfigured || !supabase) return null;
-    let query = supabase.from('companions').select('*');
-    if (cityFilter && cityFilter !== 'All Cities') {
-      query = query.eq('city', cityFilter);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []).map(formatSupabaseCompanion);
-  },
-
-  // --- ACTIVITY REQUESTS ---
-  async getRequests() {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data, error } = await supabase
-      .from('activity_requests')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data || []).map(formatSupabaseRequest);
-  },
-
-  async createRequest(requestData) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const dbPayload = {
-      client_id: requestData.clientId || requestData.client_id || 'guest',
-      client_name: requestData.clientName || requestData.client_name || 'Member',
-      client_avatar: requestData.clientAvatar || requestData.client_avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces',
-      activity: requestData.activity,
-      city: requestData.city || 'Bengaluru',
-      area: requestData.area || 'City Center',
-      date_time: requestData.dateTime || requestData.date_time || 'Today, 7:00 PM',
-      budget: Number(requestData.budget) || 1000,
-      duration: Number(requestData.duration) || 2,
-      gender_pref: requestData.genderPref || requestData.gender_pref || 'Any Gender',
-      description: requestData.description || '',
-      status: 'OPEN',
-      responses_count: 0
-    };
-    const { data, error } = await supabase
-      .from('activity_requests')
-      .insert([dbPayload])
-      .select()
-      .single();
-    if (error) throw error;
-    return formatSupabaseRequest(data);
-  },
-
-  // --- BOOKINGS & ESCROW ---
-  async getBookings(userId) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    let query = supabase.from('bookings').select('*').order('created_at', { ascending: false });
-    if (userId) {
-      query = query.or(`client_id.eq.${userId},buddy_id.eq.${userId}`);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
-  },
-
-  async createBooking(bookingData) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert([bookingData])
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  async verifyBookingPin(bookingId, pin) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data, error } = await supabase
-      .from('bookings')
-      .update({ 
-        escrow_status: 'RELEASED', 
-        pin_verified: true,
-        completed_at: new Date().toISOString() 
-      })
-      .eq('id', bookingId)
-      .eq('handshake_pin', pin)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  // --- CHAT MESSAGES & REALTIME ---
-  async getMessages(roomId) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
-    if (error) throw error;
-    return data;
-  },
-
-  async sendMessage(messageData) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert([messageData])
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  subscribeToRoom(roomId, onNewMessage, onStatusChange) {
-    if (!isSupabaseConfigured || !supabase) return () => {};
-    let retryCount = 0;
-    let activeChannel = null;
-
-    const initChannel = () => {
-      activeChannel = supabase
-        .channel(`room:${roomId}`)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
-          payload => {
-            onNewMessage(payload.new);
-          }
-        )
-        .subscribe((status, err) => {
-          if (onStatusChange) onStatusChange(status, err);
-          if (status === 'SUBSCRIBED') {
-            retryCount = 0;
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            const timeout = Math.min(1000 * Math.pow(2, retryCount), 15000);
-            retryCount++;
-            console.warn(`[Supabase Realtime] Reconnecting room ${roomId} in ${timeout}ms...`);
-            setTimeout(() => {
-              if (activeChannel) supabase.removeChannel(activeChannel);
-              initChannel();
-            }, timeout);
-          }
-        });
-    };
-
-    initChannel();
-
-    return () => {
-      if (activeChannel) {
-        supabase.removeChannel(activeChannel);
-      }
-    };
-  },
-
-  // --- HALLMARK TRUST CREDENTIALS ---
-  async registerHallmarkCredential(credential) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data, error } = await supabase
-      .from('hallmark_credentials')
-      .upsert([credential], { onConflict: 'fingerprint_hash' })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  async verifyHallmarkOnCloud(hash) {
-    if (!isSupabaseConfigured || !supabase) return null;
-    const { data, error } = await supabase
-      .from('hallmark_credentials')
-      .select('*')
-      .eq('fingerprint_hash', hash)
-      .single();
-    if (error) return null;
-    return data;
-  }
-};
-
-/**
- * Format raw Supabase User object into FindCo's user profile schema
- */
+// --- Formatters (unchanged shapes the components expect) --------------------
 export function formatSupabaseUserProfile(user, fallbackRole = 'client') {
   if (!user) return null;
   const metadata = user.user_metadata || {};
-  const role = metadata.role || fallbackRole;
+  const role = metadata.role || user.role || fallbackRole;
   const isBuddy = role === 'buddy';
-  
   return {
     id: user.id,
     supabaseUserId: user.id,
-    name: metadata.full_name || (user.email ? user.email.split('@')[0] : (isBuddy ? 'Priya Sharma' : 'Member')),
+    name: metadata.full_name || user.full_name || (user.email ? user.email.split('@')[0] : (isBuddy ? 'Priya Sharma' : 'Member')),
     email: user.email || '',
     phone: metadata.phone || user.phone || '',
-    city: metadata.city || 'Bengaluru',
-    role: role,
-    avatar: metadata.avatar || (isBuddy 
+    city: metadata.city || user.city || 'Bengaluru',
+    role,
+    avatar: metadata.avatar || metadata.avatar_url || user.avatar_url || (isBuddy
       ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=500&fit=crop&crop=faces'
       : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces'),
-    isAadhaarVerified: true
+    isAadhaarVerified: true,
   };
 }
-
-/**
- * Format raw Supabase Companion database row into FindCo's component-ready schema
- */
 export function formatSupabaseCompanion(row) {
   if (!row) return null;
   return {
@@ -623,13 +319,9 @@ export function formatSupabaseCompanion(row) {
     services: Array.isArray(row.services) ? row.services : ['Cafe & Dining Buddy'],
     languages: Array.isArray(row.languages) ? row.languages : ['English', 'Hindi'],
     completedHangouts: row.completed_hangouts ?? row.completedHangouts ?? 12,
-    hallmarkId: row.hallmark_id || row.hallmarkId || `HLM-${(row.city || 'BLR').slice(0, 3).toUpperCase()}-9901`
+    hallmarkId: row.hallmark_id || row.hallmarkId || `HLM-${(row.city || 'BLR').slice(0, 3).toUpperCase()}-9901`,
   };
 }
-
-/**
- * Format raw Supabase Activity Request database row into FindCo's component-ready schema
- */
 export function formatSupabaseRequest(row) {
   if (!row) return null;
   return {
@@ -648,146 +340,6 @@ export function formatSupabaseRequest(row) {
     description: row.description || '',
     status: row.status || 'OPEN',
     responsesCount: row.responses_count ?? row.responsesCount ?? 0,
-    createdAt: row.created_at || row.createdAt
+    createdAt: row.created_at || row.createdAt,
   };
 }
-
-/**
- * Supabase Authentication Service
- * Complete client interface for Email/Password, Magic Link, Phone OTP, Google OAuth & Session Management
- */
-export const SupabaseAuthService = {
-  /**
-   * Get active Supabase session
-   */
-  async getSession() {
-    if (!isSupabaseConfigured || !supabase) return null;
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      return session;
-    } catch (err) {
-      console.warn('[SupabaseAuth] getSession error:', err);
-      return null;
-    }
-  },
-
-  /**
-   * Register a new user with Email + Password and metadata profile
-   */
-  async signUpWithEmail({ email, password, fullName, role = 'client', phone = '', city = 'Bengaluru' }) {
-    if (!isSupabaseConfigured || !supabase) {
-      throw new Error('Supabase client is not configured with cloud credentials.');
-    }
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role,
-          phone,
-          city
-        }
-      }
-    });
-    if (error) throw error;
-    return data;
-  },
-
-  /**
-   * Sign in with Email + Password
-   */
-  async signInWithEmail(email, password) {
-    if (!isSupabaseConfigured || !supabase) {
-      throw new Error('Supabase client is not configured with cloud credentials.');
-    }
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (error) throw error;
-    return data;
-  },
-
-  /**
-   * Request an OTP / Magic Link via Email or Phone
-   */
-  async signInWithOtp(emailOrPhone) {
-    if (!isSupabaseConfigured || !supabase) {
-      throw new Error('Supabase client is not configured with cloud credentials.');
-    }
-    const isPhone = !emailOrPhone.includes('@');
-    const params = isPhone 
-      ? { phone: emailOrPhone.startsWith('+') ? emailOrPhone : `+91${emailOrPhone.replace(/\D/g, '')}` }
-      : { email: emailOrPhone };
-    const { data, error } = await supabase.auth.signInWithOtp(params);
-    if (error) throw error;
-    return data;
-  },
-
-  /**
-   * Verify an SMS or Email OTP code
-   */
-  async verifyOtp({ phoneOrEmail, token, type = 'email' }) {
-    if (!isSupabaseConfigured || !supabase) {
-      throw new Error('Supabase client is not configured with cloud credentials.');
-    }
-    const isPhone = !phoneOrEmail.includes('@');
-    const params = isPhone 
-      ? { phone: phoneOrEmail.startsWith('+') ? phoneOrEmail : `+91${phoneOrEmail.replace(/\D/g, '')}`, token, type: 'sms' }
-      : { email: phoneOrEmail, token, type: 'email' };
-    const { data, error } = await supabase.auth.verifyOtp(params);
-    if (error) throw error;
-    return data;
-  },
-
-  /**
-   * Sign in using Google OAuth
-   */
-  async signInWithGoogle() {
-    if (!isSupabaseConfigured || !supabase) {
-      throw new Error('Supabase client is not configured with cloud credentials.');
-    }
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
-    if (error) throw error;
-    return data;
-  },
-
-  /**
-   * Sign out of Supabase session
-   */
-  async signOut() {
-    if (!isSupabaseConfigured || !supabase) return;
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) console.warn('[SupabaseAuth] signOut error:', error);
-    } catch (err) {
-      console.warn('[SupabaseAuth] signOut exception:', err);
-    }
-  },
-
-  /**
-   * Subscribe to auth state transitions (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
-   */
-  onAuthStateChange(callback) {
-    if (!isSupabaseConfigured || !supabase) return () => {};
-    try {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        callback(event, session);
-      });
-      return () => {
-        subscription?.unsubscribe();
-      };
-    } catch (err) {
-      console.warn('[SupabaseAuth] onAuthStateChange setup failed:', err);
-      return () => {};
-    }
-  }
-};
-

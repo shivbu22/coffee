@@ -2,9 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, SupabaseAuthService, formatSupabaseUserProfile, isSupabaseConfigured } from '../lib/supabaseClient';
 
 /**
- * AuthContext — Supabase session is the single source of truth.
+ * AuthContext — Cloudflare session is the single source of truth.
  * App.jsx still owns its legacy local session state for now; this provider
- * mirrors the Supabase session so new code can use useAuth() and
+ * mirrors the Cloudflare session so new code can use useAuth() and
  * <ProtectedRoute> without depending on localStorage.
  */
 const AuthContext = createContext({ user: null, session: null, loading: true, signOut: async () => {} });
@@ -47,10 +47,10 @@ export function useAuth() {
 }
 
 /**
- * ProtectedRoute — render children only with a Supabase session.
+ * ProtectedRoute — render children only with a Cloudflare session.
  * While App.jsx keeps its own isLoggedIn gate, this guard is used for the
  * admin gate at minimum; pass `fallback` (e.g. an auth prompt) for the rest.
- * If Supabase is not configured, it falls back to `allowWhenUnconfigured`
+ * If Cloudflare is not configured, it falls back to `allowWhenUnconfigured`
  * so local/demo runs are not locked out — set it false in production.
  */
 export function ProtectedRoute({ children, fallback = null, allowWhenUnconfigured = true, isAuthenticated = null }) {

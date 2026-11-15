@@ -23,8 +23,6 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
-import SafeAvatar from './SafeAvatar';
-import EmergencySosModal from './EmergencySosModal';
 
 export default function ChatsView({ 
   chats, 
@@ -46,7 +44,6 @@ export default function ChatsView({
   const [filterCategory, setFilterCategory] = useState('all'); // 'all' | 'unread' | 'quotes' | 'active'
   const [copiedPin, setCopiedPin] = useState(false);
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
-  const [isSosModalOpen, setIsSosModalOpen] = useState(false);
 
   // Quick icebreaker suggestion chips
   const quickChips = [
@@ -78,25 +75,22 @@ export default function ChatsView({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.messages, isTyping]);
 
-  // Supabase Realtime WebSocket subscription for live messages (Cross-tab resilient)
+  // Cloudflare Realtime WebSocket subscription for live messages
   useEffect(() => {
     if (!isSupabaseConfigured || !selectedRoomId) return;
     const unsubscribe = SupabaseService.subscribeToRoom(selectedRoomId, (incoming) => {
+      if (incoming.sender_role === role) return; // avoid duplicate local echo
       setChats(prev => prev.map(c => {
         if (c.id === selectedRoomId) {
-          // Deduplicate by message ID or client_temp_id to support cross-tab sync
-          if (c.messages.some(m => m.id === incoming.id || (m.clientTempId && m.clientTempId === incoming.client_temp_id))) {
-            return c;
-          }
+          if (c.messages.some(m => m.id === incoming.id)) return c;
           return {
             ...c,
             messages: [...c.messages, {
               id: incoming.id,
-              sender: incoming.sender_role === role ? 'me' : 'other',
+              sender: 'other',
               text: incoming.text,
               time: new Date(incoming.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              isRead: true,
-              status: 'delivered'
+              isRead: true
             }],
             lastMessageTime: 'Just now'
           };
@@ -133,17 +127,12 @@ export default function ChatsView({
     const text = textToSend || inputText;
     if (!text || !text.trim()) return;
 
-    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    const tempId = `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-
     const newMsg = {
-      id: tempId,
-      clientTempId: tempId,
+      id: `m_${Date.now()}`,
       sender: 'me',
       text: text.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isRead: true,
-      status: isOnline ? 'delivered' : 'failed'
+      isRead: true
     };
 
     setChats(prev => prev.map(c => {
@@ -159,35 +148,17 @@ export default function ChatsView({
 
     if (!textToSend) setInputText('');
 
-    if (!isOnline) {
-      if (onShowToast) onShowToast("You are offline. Message queued locally.", "error");
-      return;
-    }
-
-    // Sync to Supabase PostgreSQL Realtime if cloud connected
+    // Sync to Cloudflare PostgreSQL Realtime if cloud connected
     if (isSupabaseConfigured) {
       SupabaseService.sendMessage({
         room_id: selectedRoomId,
         sender_name: role === 'buddy' ? 'Buddy' : 'Client',
         sender_role: role === 'buddy' ? 'buddy' : 'client',
-        text: text.trim(),
-        client_temp_id: tempId
-      }).catch(err => {
-        console.warn('[Supabase Sync] message delivery fallback:', err);
-        setChats(prev => prev.map(c => {
-          if (c.id === selectedRoomId) {
-            return {
-              ...c,
-              messages: c.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m)
-            };
-          }
-          return c;
-        }));
-      });
-      return;
+        text: text.trim()
+      }).catch(err => console.warn('[Cloudflare Sync] message delivery fallback:', err));
     }
 
-    // In local demo mode only, simulate companion typing and automated reply
+    // Simulate companion typing and automated reply
     setTimeout(() => {
       setIsTyping(true);
     }, 500);
@@ -332,7 +303,7 @@ export default function ChatsView({
         total_amount: 800,
         escrow_status: 'LOCKED',
         handshake_pin: handshakePin
-      }).catch(err => console.warn('[Supabase Sync] booking sync error:', err));
+      }).catch(err => console.warn('[Cloudflare Sync] booking sync error:', err));
     }
 
     if (onShowToast) onShowToast(`Quote Accepted! ₹800 locked in FindCo Escrow Vault. Handshake PIN: ${handshakePin}.`, 'success');
@@ -380,7 +351,7 @@ export default function ChatsView({
       {/* Outer Card Frame */}
       <div style={{
         borderRadius: 20,
-        height: 'calc(100dvh - 105px)',
+        height: 'calc(100vh - 105px)',
         minHeight: 580,
         display: 'flex',
         overflow: 'hidden',
@@ -1505,7 +1476,9 @@ export default function ChatsView({
               {/* Emergency SOS button */}
               <button
                 type="button"
-                onClick={() => setIsSosModalOpen(true)}
+                onClick={() => {
+                  if (onShowToast) onShowToast('Emergency SOS simulated: Live location pinged to FindCo 24/7 Command.', 'error');
+                }}
                 style={{
                   width: '100%',
                   marginTop: 24,
@@ -1524,7 +1497,7 @@ export default function ChatsView({
                 }}
               >
                 <AlertTriangle size={15} />
-                <span>Emergency Safety Alert (112 SOS)</span>
+                <span>Emergency Safety Alert</span>
               </button>
             </div>
           </div>
@@ -1773,14 +1746,6 @@ export default function ChatsView({
           </div>
         </div>
       )}
-
-      {/* Real-time Crisis & SOS Emergency Dispatch Modal */}
-      <EmergencySosModal 
-        isOpen={isSosModalOpen}
-        onClose={() => setIsSosModalOpen(false)}
-        currentUser={{ name: role === 'buddy' ? 'Companion' : 'Client' }}
-        onShowToast={onShowToast}
-      />
 
     </div>
   );

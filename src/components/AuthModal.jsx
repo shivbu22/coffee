@@ -98,7 +98,7 @@ export default function AuthModal({
 
   if (!isOpen) return null;
 
-  // --- 1. EMAIL SIGN IN & SIGN UP (SUPABASE AUTH) ---
+  // --- 1. EMAIL SIGN IN & SIGN UP (CLOUDFLARE AUTH) ---
   const handleEmailAuth = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -121,7 +121,7 @@ export default function AuthModal({
     try {
       if (isCloudActive) {
         if (emailMode === 'signup') {
-          // Live Supabase Cloud Sign Up
+          // Live Cloudflare Cloud Sign Up
           const data = await SupabaseAuthService.signUpWithEmail({
             email,
             password,
@@ -136,20 +136,20 @@ export default function AuthModal({
             if (data.session) {
               onLoginSuccess(profile);
               onClose();
-              if (onShowToast) onShowToast(`Welcome to FindCo, ${profile.name}! (Supabase Auth)`, 'success');
+              if (onShowToast) onShowToast(`Welcome to FindCo, ${profile.name}! (Cloudflare Auth)`, 'success');
             } else {
-              setSuccessNotice('Account registered in Supabase! If confirmation email was enabled, please verify your inbox.');
-              if (onShowToast) onShowToast('Supabase account registered!', 'info');
+              setSuccessNotice('Account registered in Cloudflare! If confirmation email was enabled, please verify your inbox.');
+              if (onShowToast) onShowToast('Cloudflare account registered!', 'info');
             }
           }
         } else {
-          // Live Supabase Cloud Sign In
+          // Live Cloudflare Cloud Sign In
           const data = await SupabaseAuthService.signInWithEmail(email, password);
           if (data?.user) {
             const profile = formatSupabaseUserProfile(data.user, role);
             onLoginSuccess(profile);
             onClose();
-            if (onShowToast) onShowToast(`Welcome back, ${profile.name}! (Supabase Auth)`, 'success');
+            if (onShowToast) onShowToast(`Welcome back, ${profile.name}! (Cloudflare Auth)`, 'success');
           }
         }
       } else {
@@ -184,7 +184,7 @@ export default function AuthModal({
     }
   };
 
-  // --- 2. MOBILE OTP FLOW (SUPABASE / LOCAL) ---
+  // --- 2. MOBILE OTP FLOW (CLOUDFLARE / OTP) ---
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -199,9 +199,9 @@ export default function AuthModal({
       if (isCloudActive) {
         try {
           await SupabaseAuthService.signInWithOtp(`+91${cleanPhone}`);
-          if (onShowToast) onShowToast(`SMS OTP sent via Supabase Auth to +91 ${cleanPhone}!`, 'info');
+          if (onShowToast) onShowToast(`SMS OTP sent via Cloudflare Auth to +91 ${cleanPhone}!`, 'info');
         } catch (supaErr) {
-          console.warn('[Supabase SMS Note]', supaErr.message);
+          console.warn('[Cloudflare SMS Note]', supaErr.message);
           await AuthEngine.requestPhoneOtp(cleanPhone);
           if (onShowToast) onShowToast(`Verification code sent to +91 ${cleanPhone}`, 'info');
         }
@@ -247,11 +247,11 @@ export default function AuthModal({
             const profile = formatSupabaseUserProfile(res.user, role);
             onLoginSuccess(profile);
             onClose();
-            if (onShowToast) onShowToast(`Verified via Supabase Phone Auth!`, 'success');
+            if (onShowToast) onShowToast(`Verified via Cloudflare Phone Auth!`, 'success');
             return;
           }
         } catch (supaErr) {
-          console.warn('[Supabase Verify Note]', supaErr.message);
+          console.warn('[Cloudflare Verify Note]', supaErr.message);
         }
       }
 
@@ -271,7 +271,7 @@ export default function AuthModal({
   const handleGoogleLogin = async () => {
     setErrorMessage(null);
     if (!isCloudActive) {
-      setErrorMessage('Google OAuth requires Supabase Cloud authentication.');
+      setErrorMessage('Google OAuth requires Cloudflare Cloud authentication.');
       return;
     }
     try {
@@ -420,7 +420,7 @@ export default function AuthModal({
             }}>
               {authMethod === 'email'
                 ? (emailMode === 'signup' 
-                    ? 'Sign up with Supabase to connect with verified companions across India.' 
+                    ? 'Sign up with Cloudflare to connect with verified companions across India.' 
                     : 'Sign in to access your bookings, chat quotes, and escrow wallet.')
                 : `Enter the 6-digit verification code sent to +91 ${phone}`}
             </p>
@@ -535,7 +535,7 @@ export default function AuthModal({
             </div>
           )}
 
-          {/* METHOD 1: EMAIL & PASSWORD (SUPABASE AUTH) */}
+          {/* METHOD 1: EMAIL & PASSWORD (CLOUDFLARE AUTH) */}
           {authMethod === 'email' && (
             <form onSubmit={handleEmailAuth}>
               

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase, SupabaseAuthService, SupabaseService, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { SupabaseAuthService, SupabaseService, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { 
   ShieldCheck, 
   Lock, 
@@ -33,8 +33,8 @@ export default function AdminSecurityGate({
       setErrorMsg('Please enter your admin email and password.');
       return;
     }
-    if (!isSupabaseConfigured || !supabase) {
-      setErrorMsg('Admin access is disabled until Supabase is configured. There are no local passkeys.');
+    if (!isSupabaseConfigured) {
+      setErrorMsg('Admin access is disabled while the backend is in local/offline mode. There are no local passkeys.');
       return;
     }
     if (attemptsLeft <= 0) {
@@ -49,8 +49,8 @@ export default function AdminSecurityGate({
       const profile = await SupabaseService.getProfile(userId).catch(() => null);
       const role = profile?.role; // profile only: user_metadata is user-controlled and must never grant admin
       if (role !== 'admin') {
-        await supabase.auth.signOut();
-        throw new Error('This account is not an admin. Access requires profiles.role = admin in Supabase.');
+        await SupabaseAuthService.signOut();
+        throw new Error('This account is not an admin. Access requires users.role = admin in the Cloudflare D1 database.');
       }
       setIsLoading(false);
       onShowToast('Identity authenticated. Welcome to FindCo Operations Console.', 'success');
@@ -217,13 +217,13 @@ export default function AdminSecurityGate({
           {/* Master Security Key */}
           <div style={{ marginBottom: 14 }}>
             <label htmlFor="admin-passkey" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#cbd5e1', marginBottom: 6 }}>
-              Admin Password (Supabase Auth)
+              Admin Password (Cloudflare Auth)
             </label>
             <div style={{ position: 'relative' }}>
               <input 
                 id="admin-passkey"
                 type={showPasskey ? 'text' : 'password'}
-                placeholder="Enter your Supabase admin password"
+                placeholder="Enter your admin password"
                 value={passkey}
                 onChange={e => setPasskey(e.target.value)}
                 required
@@ -258,7 +258,7 @@ export default function AdminSecurityGate({
             </div>
           </div>
 
-          <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 20 }}>Admin access requires a Supabase account with role = admin. Enable MFA in Supabase Auth for admin accounts.</p>
+          <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 20 }}>Admin access requires an account with role = admin in D1 (set via wrangler d1 execute — see README).</p>
 
           <button
             type="submit"

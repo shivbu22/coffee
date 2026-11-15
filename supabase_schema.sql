@@ -1,4 +1,10 @@
 -- =========================================================================
+-- LEGACY / REFERENCE ONLY — FindCo is Cloudflare-only as of 2026-11-16.
+-- The canonical schema is cloudflare/schema.sql (Cloudflare D1 / SQLite).
+-- This Postgres file is kept for historical reference; do not apply it.
+-- =========================================================================
+
+-- =========================================================================
 -- FINDCO SUPABASE PRODUCTION DATABASE SCHEMA, RLS POLICIES & SEED DATA
 -- Dedicated Social Companionship Platform with Hallmark Cryptographic Trust
 -- Compatible with PostgreSQL 15+ & Supabase Realtime WebSockets

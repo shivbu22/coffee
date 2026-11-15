@@ -5,19 +5,18 @@
  * salt, seeded accounts with a known default password, universal OTP test
  * codes, and credentials stored in localStorage. All of that has been REMOVED.
  *
- * Production auth is Supabase Auth only — see SupabaseAuthService in
- * src/lib/supabaseClient.js (email/password PKCE, magic link, phone OTP,
- * Google OAuth) and src/context/AuthContext.jsx.
+ * Production auth is the Cloudflare backend only — see SupabaseAuthService
+ * in src/lib/supabaseClient.js (compat shim over /api/auth/*: email/password,
+ * phone/email OTP, Google OAuth) and src/context/AuthContext.jsx.
  *
  * This shim is kept only so existing imports (AuthModal) do not break.
- * Every method delegates to Supabase when configured and otherwise throws a
- * clear error instead of silently creating a local account.
+ * Every method delegates to the Cloudflare API client.
  */
 import { SupabaseAuthService, isSupabaseConfigured, formatSupabaseUserProfile } from '../lib/supabaseClient';
 
 function requireSupabase() {
   if (!isSupabaseConfigured) {
-    throw new Error('Authentication is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY — local/demo auth has been removed for security.');
+    throw new Error('Authentication is disabled in local/offline mode (VITE_BACKEND_MODE=local). Local/demo auth has been removed for security.');
   }
 }
 
@@ -46,6 +45,6 @@ export const AuthEngine = {
 };
 
 // Kept for backwards-compat imports only; no local hashing is performed anymore.
-export function generateSalt() { throw new Error('Legacy local auth removed. Use Supabase Auth.'); }
-export async function hashPassword() { throw new Error('Legacy local auth removed. Use Supabase Auth.'); }
-export async function verifyPassword() { throw new Error('Legacy local auth removed. Use Supabase Auth.'); }
+export function generateSalt() { throw new Error('Legacy local auth removed. Use the Cloudflare auth API.'); }
+export async function hashPassword() { throw new Error('Legacy local auth removed. Use the Cloudflare auth API.'); }
+export async function verifyPassword() { throw new Error('Legacy local auth removed. Use the Cloudflare auth API.'); }

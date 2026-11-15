@@ -21,8 +21,6 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
-import EmergencySosModal from './EmergencySosModal';
-import SafeAvatar from './SafeAvatar';
 
 // Isolated self-updating countdown to eliminate 1-second re-render storms across the DashboardView tree
 function ActiveSessionCountdown({ initialSeconds = 42 * 60 }) {
@@ -77,7 +75,6 @@ export default function DashboardView({
   const [activePinBooking, setActivePinBooking] = useState(null);
   const [inputHandshakePin, setInputHandshakePin] = useState('');
   const [pinError, setPinError] = useState('');
-  const [pinAttempts, setPinAttempts] = useState({}); // { [bookingId]: { count: number, lockedUntil: number } }
 
   const handleCopyPin = (pin) => {
     navigator.clipboard?.writeText(pin);
@@ -96,16 +93,6 @@ export default function DashboardView({
   const handleVerifyHandshakePin = (e) => {
     e.preventDefault();
     if (!activePinBooking) return;
-
-    const bId = activePinBooking.id;
-    const currentLock = pinAttempts[bId] || { count: 0, lockedUntil: 0 };
-
-    if (currentLock.lockedUntil > Date.now()) {
-      const minsLeft = Math.ceil((currentLock.lockedUntil - Date.now()) / 60000);
-      setPinError(`Session Locked: Too many incorrect attempts. Retry in ${minsLeft} min(s) or contact support.`);
-      return;
-    }
-
     const entered = inputHandshakePin.trim();
     if (entered.length !== 4) {
       setPinError('Please enter the 4-digit PIN provided by your client.');
@@ -113,21 +100,9 @@ export default function DashboardView({
     }
 
     if (activePinBooking.handshakePin && entered !== activePinBooking.handshakePin) {
-      const nextCount = currentLock.count + 1;
-      if (nextCount >= 3) {
-        const lockedUntil = Date.now() + 15 * 60 * 1000;
-        setPinAttempts(prev => ({ ...prev, [bId]: { count: nextCount, lockedUntil } }));
-        setPinError('SECURITY FREEZE: 3 incorrect PIN attempts. Escrow locked for 15 minutes. Safety Command notified.');
-        if (onShowToast) onShowToast('CRITICAL: 3 incorrect PIN attempts. Security freeze active.', 'error');
-        return;
-      }
-      setPinAttempts(prev => ({ ...prev, [bId]: { count: nextCount, lockedUntil: 0 } }));
-      setPinError(`Incorrect Handshake PIN. ${3 - nextCount} attempt(s) remaining before security lockout.`);
+      setPinError('Incorrect Handshake PIN. Please verify the 4 digits with your client.');
       return;
     }
-
-    // Success: clear lockout
-    setPinAttempts(prev => ({ ...prev, [bId]: { count: 0, lockedUntil: 0 } }));
 
     confetti({
       particleCount: 110,
@@ -166,7 +141,7 @@ export default function DashboardView({
 
     if (isSupabaseConfigured) {
       SupabaseService.verifyBookingPin(activePinBooking.id, entered)
-        .catch(err => console.warn('[Supabase Sync] verify pin fallback:', err));
+        .catch(err => console.warn('[Cloudflare Sync] verify pin fallback:', err));
     }
 
     setIsPinModalOpen(false);
@@ -240,46 +215,6 @@ export default function DashboardView({
       setIsWithdrawModalOpen(false);
       if (onShowToast) onShowToast(`₹${numAmount.toLocaleString('en-IN')} transferred to ${dashboardData.wallet.upiId}! (Demo Mode)`, "success");
     }, 600);
-  };
-
-  const handleClientNoShowRefund = (booking) => {
-    const confirmRefund = window.confirm(
-      `Has companion "${booking.partnerName}" failed to arrive at the venue?\n\n` +
-      `Initiating a No-Show Dispute will cancel this session and return 100% of ₹${Number(booking.escrowAmount || booking.amount || 800).toLocaleString('en-IN')} directly to your wallet under the FindCo Sovereign Escrow Guarantee.`
-    );
-    if (!confirmRefund) return;
-
-    const refundAmount = Number(booking.escrowAmount || booking.amount || 800);
-
-    setDashboardData(prev => ({
-      ...prev,
-      wallet: {
-        ...prev.wallet,
-        availableBalance: prev.wallet.availableBalance + refundAmount,
-        transactions: [
-          {
-            id: `tx_ref_${Date.now()}`,
-            date: 'Just now',
-            title: `100% Escrow Refund (Companion No-Show: ${booking.title || 'Meetup'})`,
-            amount: refundAmount,
-            type: 'credit',
-            status: 'Settled to Wallet (Sovereign Escrow Guarantee)'
-          },
-          ...prev.wallet.transactions
-        ]
-      },
-      upcomingBookings: prev.upcomingBookings.map(b => 
-        b.id === booking.id ? { ...b, status: 'refunded', escrowStatus: 'Refunded (No-Show)' } : b
-      )
-    }));
-
-    if (isSupabaseConfigured) {
-      SupabaseService.updateBookingStatus(booking.id, 'REFUNDED_NO_SHOW').catch(console.warn);
-    }
-
-    if (onShowToast) {
-      onShowToast(`₹${refundAmount.toLocaleString('en-IN')} escrow refunded to your wallet due to companion no-show.`, 'success');
-    }
   };
 
   const activeHangout = dashboardData?.activeHangout;
@@ -1196,7 +1131,7 @@ export default function DashboardView({
                     {b.status === 'confirmed' ? (
                       <>
                         <CheckCircle2 size={12} />
-                        <span>Confirmed • {role === 'client' ? `PIN: ${b.handshakePin}` : 'PIN: •••• (Client Key)'}</span>
+                        <span>Confirmed • PIN: {b.handshakePin}</span>
                       </>
                     ) : (
                       <>
@@ -1285,44 +1220,6 @@ export default function DashboardView({
                           border: '1px solid #a7f3d0'
                         }}>
                           ✓ Escrow Released to Payouts
-                        </span>
-                      )}
-
-                      {b.status === 'confirmed' && b.escrowStatus !== 'Escrow Released' && b.status !== 'refunded' && role === 'client' && (
-                        <button
-                          type="button"
-                          onClick={() => handleClientNoShowRefund(b)}
-                          style={{
-                            padding: '8px 12px',
-                            background: '#fff1f2',
-                            color: '#e11d48',
-                            border: '1px solid #fecdd3',
-                            borderRadius: 10,
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 5
-                          }}
-                          title="Companion did not arrive? Claim instant 100% refund."
-                        >
-                          <AlertTriangle size={13} />
-                          <span>No-Show Refund</span>
-                        </button>
-                      )}
-
-                      {b.status === 'refunded' && (
-                        <span style={{
-                          padding: '6px 12px',
-                          background: '#fef2f2',
-                          color: '#dc2626',
-                          borderRadius: 8,
-                          fontSize: '0.76rem',
-                          fontWeight: 800,
-                          border: '1px solid #fecaca'
-                        }}>
-                          ✓ Escrow Refunded (No-Show)
                         </span>
                       )}
 
@@ -1791,14 +1688,100 @@ export default function DashboardView({
         </div>
       )}
 
-      {/* REAL-WORLD SOS EMERGENCY DISPATCH MODAL */}
-      <EmergencySosModal 
-        isOpen={isSosModalOpen}
-        onClose={() => setIsSosModalOpen(false)}
-        activeBooking={activeHangout}
-        safetyEnclave={safetyEnclave}
-        onShowToast={onShowToast}
-      />
+      {/* SOS EMERGENCY MODAL */}
+      {isSosModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000,
+          padding: 16
+        }}>
+          <div style={{
+            background: '#ffffff',
+            border: '2px solid #dc2626',
+            borderRadius: 20,
+            width: '100%',
+            maxWidth: 440,
+            padding: 26,
+            boxShadow: '0 25px 50px -12px rgba(220, 38, 38, 0.35)',
+            animation: 'fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <AlertTriangle size={26} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: '#dc2626' }}>
+                  FindCo Emergency SOS
+                </h3>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2 }}>
+                  Active Venue: {activeHangout?.venue}
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.86rem', color: '#334155', lineHeight: 1.55, marginBottom: 18 }}>
+              Triggering SOS immediately dispatches your current GPS coordinates, companion identity, and venue details to <strong>{safetyEnclave.emergencyContactName}</strong> and places a high-priority bridge call with FindCo Trust & Safety Desk.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSosModalOpen(false);
+                  if (onShowToast) onShowToast("EMERGENCY ALERT: Location and session logs transmitted to guardian & police helpline.", "error");
+                }}
+                style={{
+                  width: '100%',
+                  padding: '13px',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: '0.92rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.3)'
+                }}
+              >
+                Confirm & Dispatch SOS Alert
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSosModalOpen(false)}
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  color: '#475569',
+                  borderRadius: 12,
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel (Test / Accidental Trigger)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Handshake PIN Escrow Release Modal */}
       {isPinModalOpen && activePinBooking && (
