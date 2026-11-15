@@ -580,6 +580,22 @@ export default function SubscriptionModal({
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
                 256-Bit Encrypted Payment Gateway · NPCI Approved
               </p>
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                color: '#b45309',
+                borderRadius: 8,
+                padding: '6px 12px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                marginTop: 8,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6
+              }}>
+                <span>⚠️ DEMO SANDBOX</span>
+                <span style={{ fontWeight: 500 }}>Simulated payment test mode. No real money or bank accounts will be charged.</span>
+              </div>
             </div>
 
             <div style={{

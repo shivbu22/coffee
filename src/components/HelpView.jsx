@@ -144,6 +144,14 @@ export default function HelpView({
   const [ticketMessage, setTicketMessage] = useState('');
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   const [ticketSubmitted, setTicketSubmitted] = useState(null);
+  const [userTickets, setUserTickets] = useState(() => {
+    try {
+      const saved = localStorage.getItem('findco_support_tickets_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   // Filter FAQs based on category & search query
   const filteredFaqs = useMemo(() => {
@@ -171,6 +179,7 @@ export default function HelpView({
 
   const handleSubmitTicket = (e) => {
     e.preventDefault();
+    if (isSubmittingTicket) return;
     if (!ticketSubject.trim() || !ticketMessage.trim()) {
       if (onShowToast) onShowToast('Please provide both a subject and details for your request.', 'error');
       return;
@@ -179,19 +188,33 @@ export default function HelpView({
     setIsSubmittingTicket(true);
     setTimeout(() => {
       const ticketId = `FND-${Math.floor(10000 + Math.random() * 90000)}`;
-      setIsSubmittingTicket(false);
-      setTicketSubmitted({
+      const newTicket = {
         id: ticketId,
-        subject: ticketSubject,
+        subject: ticketSubject.trim(),
+        message: ticketMessage.trim(),
         category: ticketCategory,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        priority: ticketPriority,
+        status: 'Active Investigation',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+      };
+
+      setUserTickets(prev => {
+        const updated = [newTicket, ...prev];
+        try {
+          localStorage.setItem('findco_support_tickets_v1', JSON.stringify(updated));
+        } catch (err) {}
+        return updated;
       });
+
+      setIsSubmittingTicket(false);
+      setTicketSubmitted(newTicket);
       if (onShowToast) {
-        onShowToast(`Support Ticket #${ticketId} created! Our operations team has been notified.`, 'success');
+        onShowToast(`Support Ticket #${ticketId} registered & saved! Operations notified.`, 'success');
       }
       setTicketSubject('');
       setTicketMessage('');
-    }, 850);
+    }, 700);
   };
 
   return (

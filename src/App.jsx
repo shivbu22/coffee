@@ -23,6 +23,10 @@ const SubscriptionModal = lazy(() => import('./components/SubscriptionModal'));
 const PostRequestModal = lazy(() => import('./components/PostRequestModal'));
 const HallmarkTrustModal = lazy(() => import('./components/HallmarkTrustModal'));
 const AntigravityAgentModal = lazy(() => import('./components/AntigravityAgentModal'));
+const LegalModal = lazy(() => import('./components/LegalModal'));
+const ShareInviteModal = lazy(() => import('./components/ShareInviteModal'));
+import CookieConsentBanner from './components/CookieConsentBanner';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function ViewLoader({ message = 'Loading...' }) {
   return (
@@ -98,6 +102,20 @@ export default function App() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedActivityForPost, setSelectedActivityForPost] = useState(null);
   const [activeRoomId, setActiveRoomId] = useState('room_1');
+
+  // Legal & Share Modals
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState('terms');
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  const handleOpenLegal = (tab = 'terms') => {
+    setLegalModalTab(tab);
+    setIsLegalModalOpen(true);
+  };
+
+  const handleOpenShare = () => {
+    setIsShareModalOpen(true);
+  };
 
   // Synchronize state changes to StorageEngine
   useEffect(() => {
@@ -641,6 +659,7 @@ export default function App() {
             }}
             onOpenPostRequest={handlePostRequestClick}
             onOpenAuth={handleOpenAuth}
+            onOpenLegal={handleOpenLegal}
           />
         </>
       ) : (
@@ -659,6 +678,7 @@ export default function App() {
             }
           }}
           onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+          onOpenShareInvite={handleOpenShare}
           onUnlockSubscription={handleUnlockSubscription}
           onOpenPostRequest={handlePostRequestClick}
           buddyProfile={currentUser || buddyProfile}
@@ -669,13 +689,15 @@ export default function App() {
           onOpenHallmark={handleOpenHallmark}
         >
           <main id="main-content" style={{ flex: 1, minWidth: 0, width: '100%' }}>
-            <Suspense fallback={<ViewLoader message="Opening view..." />}>
+            <ErrorBoundary onGoHome={() => setActiveTab('landing')}>
+              <Suspense fallback={<ViewLoader message="Opening view..." />}>
               {activeTab === 'feed' && (
                 <BuddyFeedView 
               requests={requests}
               setRequests={setRequests}
               hasActiveSub={hasActiveSub}
               onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+          onOpenShareInvite={handleOpenShare}
               onUnlockSubscription={handleUnlockSubscription}
               onOpenPostRequest={() => setIsPostModalOpen(true)}
               onNavigateToChat={(roomId) => {
@@ -697,6 +719,7 @@ export default function App() {
               isLoggedIn={isLoggedIn}
               onOpenAuth={handleOpenAuth}
               onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+          onOpenShareInvite={handleOpenShare}
               onUnlockSubscription={handleUnlockSubscription}
               onOpenHallmark={handleOpenHallmark}
               onOpenAntigravityAgent={handleOpenAntigravityAgent}
@@ -773,6 +796,7 @@ export default function App() {
               profile={buddyProfile}
               setProfile={setBuddyProfile}
               onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+          onOpenShareInvite={handleOpenShare}
               onNavigateToFeed={() => setActiveTab('feed')}
               onNavigateToVault={() => setActiveTab('vault')}
               onShowToast={showToast}
@@ -888,7 +912,8 @@ export default function App() {
             </div>
           )}
             </Suspense>
-          </main>
+          </ErrorBoundary>
+        </main>
         </BuddyAppShell>
       )}
 
@@ -951,13 +976,36 @@ export default function App() {
             onShowToast={showToast}
           />
         )}
+
+        {/* FindCo Legal & Statutory Compliance Modal */}
+        {isLegalModalOpen && (
+          <LegalModal 
+            isOpen={isLegalModalOpen}
+            onClose={() => setIsLegalModalOpen(false)}
+            initialTab={legalModalTab}
+          />
+        )}
+
+        {/* FindCo Marketing & Share Invite Modal */}
+        {isShareModalOpen && (
+          <ShareInviteModal 
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            userProfile={currentUser}
+            onShowToast={showToast}
+          />
+        )}
       </Suspense>
+
+      {/* DPDP Act Compliant Cookie & Session Integrity Banner */}
+      <CookieConsentBanner onOpenPrivacy={() => handleOpenLegal('dpdp')} />
 
       {/* Watermelon-inspired Cozy Companion Floating Beacon */}
       {siteMode === 'consumer' && (
         <CozyFloatingBeacon 
           onOpenFeed={() => navigateWithAuth('feed')}
           onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+          onOpenShareInvite={handleOpenShare}
           onOpenAntigravityAgent={handleOpenAntigravityAgent}
           onOpenHallmark={() => handleOpenHallmark({ id: 'comp_1', name: 'Priya Sharma', city: 'Bengaluru' })}
         />

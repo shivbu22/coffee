@@ -22,7 +22,8 @@ export default function Footer({
   onOpenAdminPortal, 
   onOpenSubscribe, 
   onOpenPostRequest,
-  onOpenAuth 
+  onOpenAuth,
+  onOpenLegal
 }) {
   const activeMetros = CITIES.slice(1, 9); // Bengaluru, Mumbai, Delhi NCR, Pune, Hyderabad, Goa, Kolkata, Chennai
 
@@ -651,7 +652,7 @@ export default function Footer({
           }}>
             <button
               type="button"
-              onClick={() => handleNavClick('landing')}
+              onClick={() => onOpenLegal ? onOpenLegal('terms') : handleNavClick('landing')}
               style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', fontSize: 'inherit' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-main)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
@@ -661,7 +662,7 @@ export default function Footer({
             <span>·</span>
             <button
               type="button"
-              onClick={() => handleNavClick('landing')}
+              onClick={() => onOpenLegal ? onOpenLegal('privacy') : handleNavClick('landing')}
               style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', fontSize: 'inherit' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-main)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
@@ -671,7 +672,7 @@ export default function Footer({
             <span>·</span>
             <button
               type="button"
-              onClick={() => handleNavClick('landing')}
+              onClick={() => onOpenLegal ? onOpenLegal('dpdp') : handleNavClick('landing')}
               style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', fontSize: 'inherit' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-main)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}

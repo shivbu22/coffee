@@ -215,32 +215,37 @@ CREATE POLICY "Public can update activity requests"
     ON public.activity_requests FOR UPDATE 
     USING (true);
 
--- 3. Bookings RLS
+-- 3. Bookings RLS (Strict Dual-Party Isolation)
 DROP POLICY IF EXISTS "Public can view bookings" ON public.bookings;
-CREATE POLICY "Public can view bookings" 
+DROP POLICY IF EXISTS "Parties can view their own bookings" ON public.bookings;
+CREATE POLICY "Parties can view their own bookings" 
     ON public.bookings FOR SELECT 
-    USING (true);
+    USING (auth.uid() = client_id OR auth.uid() = companion_id OR auth.role() = 'service_role');
 
 DROP POLICY IF EXISTS "Public can insert bookings" ON public.bookings;
-CREATE POLICY "Public can insert bookings" 
+DROP POLICY IF EXISTS "Clients can create bookings" ON public.bookings;
+CREATE POLICY "Clients can create bookings" 
     ON public.bookings FOR INSERT 
-    WITH CHECK (true);
+    WITH CHECK (auth.uid() = client_id OR auth.role() = 'service_role');
 
 DROP POLICY IF EXISTS "Public can verify handshake PIN and release escrow" ON public.bookings;
-CREATE POLICY "Public can verify handshake PIN and release escrow" 
+DROP POLICY IF EXISTS "Parties can update booking status" ON public.bookings;
+CREATE POLICY "Parties can update booking status" 
     ON public.bookings FOR UPDATE 
-    USING (true);
+    USING (auth.uid() = client_id OR auth.uid() = companion_id OR auth.role() = 'service_role');
 
--- 4. Chat Messages RLS
+-- 4. Chat Messages RLS (Participant Guarded)
 DROP POLICY IF EXISTS "Public can view room messages" ON public.chat_messages;
-CREATE POLICY "Public can view room messages" 
+DROP POLICY IF EXISTS "Room participants can view messages" ON public.chat_messages;
+CREATE POLICY "Room participants can view messages" 
     ON public.chat_messages FOR SELECT 
-    USING (true);
+    USING (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Public can insert room messages" ON public.chat_messages;
-CREATE POLICY "Public can insert room messages" 
+DROP POLICY IF EXISTS "Authenticated users can insert room messages" ON public.chat_messages;
+CREATE POLICY "Authenticated users can insert room messages" 
     ON public.chat_messages FOR INSERT 
-    WITH CHECK (true);
+    WITH CHECK (auth.uid() = sender_id OR auth.role() = 'service_role');
 
 -- 5. Hallmark Credentials RLS
 DROP POLICY IF EXISTS "Public can audit hallmark credentials" ON public.hallmark_credentials;
@@ -249,9 +254,35 @@ CREATE POLICY "Public can audit hallmark credentials"
     USING (true);
 
 DROP POLICY IF EXISTS "Public can insert hallmark records" ON public.hallmark_credentials;
-CREATE POLICY "Public can insert hallmark records" 
+DROP POLICY IF EXISTS "Authenticated users can insert hallmark records" ON public.hallmark_credentials;
+CREATE POLICY "Authenticated users can insert hallmark records" 
     ON public.hallmark_credentials FOR INSERT 
-    WITH CHECK (true);
+    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role');
+
+-- 6. Support Tickets RLS (DPDP Act Statutory Redressal)
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    category TEXT NOT NULL CHECK (category IN ('escrow', 'safety', 'harassment', 'technical', 'refund', 'other')),
+    priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'urgent', 'emergency')),
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'under_investigation', 'resolved', 'closed')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own support tickets" ON public.support_tickets;
+CREATE POLICY "Users can view their own support tickets" 
+    ON public.support_tickets FOR SELECT 
+    USING (auth.uid() = user_id OR auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "Users can file support tickets" ON public.support_tickets;
+CREATE POLICY "Users can file support tickets" 
+    ON public.support_tickets FOR INSERT 
+    WITH CHECK (auth.uid() = user_id OR user_id IS NULL OR auth.role() = 'service_role');
 
 -- =========================================================================
 -- REALTIME REPLICATION (WebSockets)

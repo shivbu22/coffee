@@ -35,6 +35,7 @@ export default function DashboardView({
   const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'wallet' | 'safety'
   const [bookingFilter, setBookingFilter] = useState('all'); // 'all' | 'confirmed' | 'pending'
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('2000');
   const [isSosModalOpen, setIsSosModalOpen] = useState(false);
   const [copiedPin, setCopiedPin] = useState(false);
@@ -163,6 +164,8 @@ export default function DashboardView({
 
   const handleWithdrawFunds = (e) => {
     e.preventDefault();
+    if (isSubmittingWithdrawal) return;
+
     const numAmount = parseInt(withdrawAmount, 10);
     if (isNaN(numAmount) || numAmount < 100) {
       if (onShowToast) onShowToast("Minimum withdrawal is ₹100.", "error");
@@ -173,27 +176,32 @@ export default function DashboardView({
       return;
     }
 
-    const newTx = {
-      id: `tx_${Date.now()}`,
-      date: 'Just now',
-      title: `IMPS Instant Transfer to ${dashboardData.wallet.upiId}`,
-      amount: -numAmount,
-      type: 'debit',
-      status: `Settled via IMPS (Ref: ${Math.floor(1000000 + Math.random() * 9000000)})`
-    };
+    setIsSubmittingWithdrawal(true);
 
-    setDashboardData(prev => ({
-      ...prev,
-      wallet: {
-        ...prev.wallet,
-        availableBalance: prev.wallet.availableBalance - numAmount,
-        lastSettlementDate: 'Just now',
-        transactions: [newTx, ...prev.wallet.transactions]
-      }
-    }));
+    setTimeout(() => {
+      const newTx = {
+        id: `tx_${Date.now()}`,
+        date: 'Just now',
+        title: `IMPS Instant Transfer to ${dashboardData.wallet.upiId}`,
+        amount: -numAmount,
+        type: 'debit',
+        status: `Settled via IMPS (Ref: ${Math.floor(1000000 + Math.random() * 9000000)})`
+      };
 
-    setIsWithdrawModalOpen(false);
-    if (onShowToast) onShowToast(`₹${numAmount.toLocaleString('en-IN')} transferred to ${dashboardData.wallet.upiId}!`, "success");
+      setDashboardData(prev => ({
+        ...prev,
+        wallet: {
+          ...prev.wallet,
+          availableBalance: prev.wallet.availableBalance - numAmount,
+          lastSettlementDate: 'Just now',
+          transactions: [newTx, ...prev.wallet.transactions]
+        }
+      }));
+
+      setIsSubmittingWithdrawal(false);
+      setIsWithdrawModalOpen(false);
+      if (onShowToast) onShowToast(`₹${numAmount.toLocaleString('en-IN')} transferred to ${dashboardData.wallet.upiId}! (Demo Mode)`, "success");
+    }, 600);
   };
 
   const activeHangout = dashboardData?.activeHangout;
@@ -1621,11 +1629,23 @@ export default function DashboardView({
                 <div style={{ fontSize: '0.74rem', color: '#059669', marginTop: 4, fontWeight: 700 }}>
                   Zero settlement charges via National Payments Corporation (NPCI)
                 </div>
+                <div style={{
+                  marginTop: 8,
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  background: '#fef3c7',
+                  color: '#92400e',
+                  fontSize: '0.72rem',
+                  fontWeight: 600
+                }}>
+                  ⚠️ DEMO MODE: Test sandbox simulation. No actual bank funds are deducted.
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: 12 }}>
                 <button
                   type="button"
+                  disabled={isSubmittingWithdrawal}
                   onClick={() => setIsWithdrawModalOpen(false)}
                   style={{
                     flex: 1,
@@ -1636,23 +1656,26 @@ export default function DashboardView({
                     color: '#64748b',
                     fontWeight: 700,
                     fontSize: '0.86rem',
-                    cursor: 'pointer'
+                    cursor: isSubmittingWithdrawal ? 'not-allowed' : 'pointer'
                   }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmittingWithdrawal}
                   className="btn-primary"
                   style={{
                     flex: 2,
                     padding: '11px',
                     borderRadius: 10,
                     fontSize: '0.86rem',
-                    fontWeight: 800
+                    fontWeight: 800,
+                    opacity: isSubmittingWithdrawal ? 0.6 : 1,
+                    cursor: isSubmittingWithdrawal ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  Confirm ₹{withdrawAmount} Transfer
+                  {isSubmittingWithdrawal ? 'Settling IMPS...' : `Confirm ₹${withdrawAmount} Transfer`}
                 </button>
               </div>
             </form>

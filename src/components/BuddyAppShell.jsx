@@ -13,6 +13,7 @@ import {
   Plus, 
   CheckCircle2,
   Lock,
+  Share2,
   X
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
@@ -27,6 +28,7 @@ export default function BuddyAppShell({
   notificationCount: externalNotificationCount,
   setNotificationCount: _externalSetNotificationCount,
   onOpenSubscribe,
+  onOpenShareInvite,
   onUnlockSubscription: _onUnlockSubscription,
   onOpenPostRequest,
   buddyProfile,
@@ -125,6 +127,13 @@ export default function BuddyAppShell({
           icon: Star,
           badge: null,
           onClick: onOpenSubscribe
+        },
+        {
+          id: 'share_invite',
+          label: 'Invite & Earn',
+          icon: Share2,
+          badge: '₹200',
+          onClick: onOpenShareInvite
         },
         {
           id: 'help',
