@@ -63,7 +63,16 @@ export default function App() {
   const [siteMode, setSiteMode] = useState('consumer'); // 'consumer' | 'admin'
   const [adminAuth, setAdminAuth] = useState(null); // null if not logged in
 
-  const [activeTab, setActiveTab] = useState('landing'); // 'landing' | 'feed' | 'discover' | 'chats' | 'vault' | 'subscriptions'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const paramTab = new URLSearchParams(window.location.search).get('tab');
+      const publicTabs = new Set(['landing', 'discover', 'feed', 'help']);
+      if (paramTab && publicTabs.has(paramTab)) {
+        return paramTab;
+      }
+    }
+    return 'landing';
+  }); // 'landing' | 'feed' | 'discover' | 'chats' | 'vault' | 'subscriptions'
   const [role, setRole] = useState('client'); // 'client' | 'buddy'
   
   // Persistent Membership state from AntiVibe StorageEngine

@@ -71,6 +71,7 @@ export default function BuddyFeedView({
   const [proposalModalData, setProposalModalData] = useState(null);
   const [customPrice, setCustomPrice] = useState('');
   const [proposalNote, setProposalNote] = useState('');
+  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
   const [reportModalData, setReportModalData] = useState(null);
 
   // Immediate tab and category filtering (eliminated artificial delay)
@@ -165,12 +166,14 @@ export default function BuddyFeedView({
 
   const handleSubmitProposal = (e) => {
     e.preventDefault();
+    if (isSubmittingProposal) return;
     const priceNum = Number(customPrice);
     if (!customPrice || isNaN(priceNum) || priceNum < 100 || priceNum > 50000) {
       onShowToast('Please enter a valid rate between ₹100 and ₹50,000.', 'error');
       return;
     }
 
+    setIsSubmittingProposal(true);
     setRequests(prev => prev.map(r => {
       if (r.id === proposalModalData.id) {
         return {
@@ -187,6 +190,7 @@ export default function BuddyFeedView({
 
     onShowToast(`Custom counter-rate of ₹${customPrice} submitted to ${proposalModalData.authorName}!`, 'success');
     setProposalModalData(null);
+    setIsSubmittingProposal(false);
   };
 
   // Filter & Sort Logic
@@ -1429,20 +1433,22 @@ export default function BuddyFeedView({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmittingProposal}
                   style={{
                     flex: 1.5,
-                    background: 'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
+                    background: isSubmittingProposal ? '#94a3b8' : 'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
                     color: '#ffffff',
                     border: 'none',
                     padding: '12px',
                     borderRadius: 12,
                     fontWeight: 700,
                     fontSize: '0.88rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(225, 29, 72, 0.35)'
+                    cursor: isSubmittingProposal ? 'not-allowed' : 'pointer',
+                    boxShadow: isSubmittingProposal ? 'none' : '0 4px 14px rgba(225, 29, 72, 0.35)',
+                    opacity: isSubmittingProposal ? 0.7 : 1
                   }}
                 >
-                  Submit Counter-Rate
+                  {isSubmittingProposal ? 'Submitting...' : 'Submit Counter-Rate'}
                 </button>
               </div>
             </form>

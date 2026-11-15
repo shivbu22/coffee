@@ -23,6 +23,7 @@ import {
   BadgeAlert,
   ArrowRight
 } from 'lucide-react';
+import { SupabaseService } from '../lib/supabaseClient';
 
 const FAQ_DATA = [
   {
@@ -177,7 +178,7 @@ export default function HelpView({
     setSearchQuery(tag);
   };
 
-  const handleSubmitTicket = (e) => {
+  const handleSubmitTicket = async (e) => {
     e.preventDefault();
     if (isSubmittingTicket) return;
     if (!ticketSubject.trim() || !ticketMessage.trim()) {
@@ -186,35 +187,39 @@ export default function HelpView({
     }
 
     setIsSubmittingTicket(true);
-    setTimeout(() => {
-      const ticketId = `FND-${Math.floor(10000 + Math.random() * 90000)}`;
-      const newTicket = {
-        id: ticketId,
-        subject: ticketSubject.trim(),
-        message: ticketMessage.trim(),
-        category: ticketCategory,
-        priority: ticketPriority,
-        status: 'Active Investigation',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-      };
+    const ticketId = `FND-${Math.floor(10000 + Math.random() * 90000)}`;
+    const newTicket = {
+      id: ticketId,
+      subject: ticketSubject.trim(),
+      message: ticketMessage.trim(),
+      category: ticketCategory,
+      priority: ticketPriority,
+      status: 'Active Investigation',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    };
 
-      setUserTickets(prev => {
-        const updated = [newTicket, ...prev];
-        try {
-          localStorage.setItem('findco_support_tickets_v1', JSON.stringify(updated));
-        } catch (err) {}
-        return updated;
-      });
+    try {
+      await SupabaseService.createSupportTicket(newTicket);
+    } catch (err) {
+      console.warn('[Support Ticket] Cloud submission fallback:', err);
+    }
 
-      setIsSubmittingTicket(false);
-      setTicketSubmitted(newTicket);
-      if (onShowToast) {
-        onShowToast(`Support Ticket #${ticketId} registered & saved! Operations notified.`, 'success');
-      }
-      setTicketSubject('');
-      setTicketMessage('');
-    }, 700);
+    setUserTickets(prev => {
+      const updated = [newTicket, ...prev];
+      try {
+        localStorage.setItem('findco_support_tickets_v1', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
+
+    setIsSubmittingTicket(false);
+    setTicketSubmitted(newTicket);
+    if (onShowToast) {
+      onShowToast(`Support Ticket #${ticketId} registered & saved! Operations notified.`, 'success');
+    }
+    setTicketSubject('');
+    setTicketMessage('');
   };
 
   return (

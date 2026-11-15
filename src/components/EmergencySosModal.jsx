@@ -22,13 +22,6 @@ export default function EmergencySosModal({
   const venue = activeBooking?.venue || 'Active Meetup Location';
   const companionName = activeBooking?.partnerName || 'Assigned Companion';
 
-  const whatsappHref = hasValidPhone 
-    ? `https://wa.me/${cleanGuardianPhone}?text=${sosBody}`
-    : `https://api.whatsapp.com/send?text=${sosBody}`;
-  const smsHref = hasValidPhone
-    ? `sms:${cleanGuardianPhone}?body=${sosBody}`
-    : `sms:?body=${sosBody}`;
-
   // Automatically request GPS position when modal opens
   useEffect(() => {
     if (!isOpen) return;
@@ -84,6 +77,13 @@ export default function EmergencySosModal({
     `Timestamp: ${new Date().toLocaleTimeString('en-IN')}\n` +
     `Please dispatch help immediately!`
   );
+
+  const whatsappHref = hasValidPhone 
+    ? `https://wa.me/${cleanGuardianPhone}?text=${sosBody}`
+    : `https://api.whatsapp.com/send?text=${sosBody}`;
+  const smsHref = hasValidPhone
+    ? `sms:${cleanGuardianPhone}?body=${sosBody}`
+    : `sms:?body=${sosBody}`;
 
   const handleCloudIncidentLog = async () => {
     if (isSupabaseConfigured && !isLoggedToCloud) {

@@ -57,7 +57,11 @@ class AnalyticsService {
   identify(userId, traits = {}) {
     if (!this.hasConsent) return;
     if (window.posthog && typeof window.posthog.identify === 'function') {
-      window.posthog.identify(userId, traits);
+      try {
+        window.posthog.identify(userId, traits);
+      } catch (err) {
+        // Silently swallow analytics errors
+      }
     }
   }
 }
