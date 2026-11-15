@@ -635,15 +635,20 @@ export default function BuddyAppShell({
         </header>
 
         {/* View Content */}
-        <main style={{ 
-          flex: 1, 
-          padding: activeTab === 'chats' ? '14px 18px 40px 18px' : '24px 28px', 
-          maxWidth: activeTab === 'chats' ? '100%' : 1100, 
-          width: '100%', 
-          margin: '0 auto' 
-        }}>
+        <div 
+          className="shell-main-content"
+          role="region"
+          aria-label="Workspace content"
+          style={{ 
+            flex: 1, 
+            padding: activeTab === 'chats' ? '14px 18px 40px 18px' : '24px 28px', 
+            maxWidth: activeTab === 'chats' ? '100%' : 1100, 
+            width: '100%', 
+            margin: '0 auto' 
+          }}
+        >
           {children}
-        </main>
+        </div>
       </div>
 
       {/* Floating PWA Card matching Antinoob UI/UX Design System */}

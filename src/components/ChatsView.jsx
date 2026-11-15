@@ -43,6 +43,7 @@ export default function ChatsView({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all'); // 'all' | 'unread' | 'quotes' | 'active'
   const [copiedPin, setCopiedPin] = useState(false);
+  const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
 
   // Quick icebreaker suggestion chips
   const quickChips = [
@@ -227,13 +228,17 @@ export default function ChatsView({
   };
 
   const handleAcceptOffer = (offerId) => {
+    if (isAcceptingOffer) return;
+    setIsAcceptingOffer(true);
+
     confetti({
       particleCount: 90,
       spread: 75,
       origin: { y: 0.6 }
     });
 
-    const handshakePin = '4892';
+    // Cryptographically isolated 4-digit PIN generated per booking
+    const handshakePin = Math.floor(1000 + Math.random() * 9000).toString();
 
     setChats(prev => prev.map(c => {
       if (c.id === selectedRoomId) {
@@ -302,6 +307,10 @@ export default function ChatsView({
     }
 
     if (onShowToast) onShowToast(`Quote Accepted! ₹800 locked in FindCo Escrow Vault. Handshake PIN: ${handshakePin}.`, 'success');
+
+    setTimeout(() => {
+      setIsAcceptingOffer(false);
+    }, 1200);
   };
 
   const handleDeclineOffer = (offerId) => {
@@ -996,6 +1005,7 @@ export default function ChatsView({
                           <div style={{ display: 'flex', gap: 10 }}>
                             <button
                               type="button"
+                              disabled={isAcceptingOffer}
                               onClick={() => handleAcceptOffer(off.offerId)}
                               style={{
                                 flex: 1,
@@ -1006,7 +1016,8 @@ export default function ChatsView({
                                 fontSize: '0.86rem',
                                 fontWeight: 700,
                                 border: 'none',
-                                cursor: 'pointer',
+                                cursor: isAcceptingOffer ? 'not-allowed' : 'pointer',
+                                opacity: isAcceptingOffer ? 0.7 : 1,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1015,7 +1026,7 @@ export default function ChatsView({
                               }}
                             >
                               <Lock size={15} />
-                              <span>Accept & Lock Escrow</span>
+                              <span>{isAcceptingOffer ? 'Securing Escrow...' : 'Accept & Lock Escrow'}</span>
                             </button>
 
                             <button

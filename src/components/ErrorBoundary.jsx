@@ -122,7 +122,7 @@ export default class ErrorBoundary extends React.Component {
             </button>
           </div>
 
-          {process.env.NODE_ENV !== 'production' && this.state.error && (
+          {import.meta.env?.DEV && this.state.error && (
             <div
               style={{
                 marginTop: 32,
@@ -150,3 +150,4 @@ export default class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+

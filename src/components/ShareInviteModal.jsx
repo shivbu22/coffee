@@ -243,8 +243,8 @@ export default function ShareInviteModal({ isOpen, onClose, userProfile, onShowT
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                background: 'var(--bg-elevated, #0f172a)',
-                color: '#ffffff',
+                background: 'var(--text-main, #0f172a)',
+                color: 'var(--bg-card, #ffffff)',
                 border: 'none',
                 padding: '11px',
                 borderRadius: 10,
@@ -262,3 +262,4 @@ export default function ShareInviteModal({ isOpen, onClose, userProfile, onShowT
     </div>
   );
 }
+

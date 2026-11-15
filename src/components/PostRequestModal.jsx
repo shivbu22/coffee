@@ -85,8 +85,9 @@ export default function PostRequestModal({
     if (title.trim().toLowerCase() === description.trim().toLowerCase()) {
       errs.description = 'Description cannot be identical to the title.';
     }
-    if (!budget || isNaN(budget) || Number(budget) <= 0) {
-      errs.budget = 'Please enter a valid budget amount.';
+    const numBudget = Number(budget);
+    if (!budget || isNaN(numBudget) || numBudget < 100 || numBudget > 50000) {
+      errs.budget = 'Please enter a valid budget between ₹100 and ₹50,000.';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -314,13 +315,18 @@ export default function PostRequestModal({
                   <input 
                     id="post-budget"
                     type="number"
+                    min="100"
+                    max="50000"
                     value={budget}
-                    onChange={e => setBudget(e.target.value)}
+                    onChange={e => {
+                      setBudget(e.target.value);
+                      if (errors.budget) setErrors(prev => ({ ...prev, budget: null }));
+                    }}
                     style={{
                       width: '100%',
                       padding: '10px 10px 10px 28px',
                       background: 'var(--bg-card)',
-                      border: '1px solid var(--border-subtle)',
+                      border: errors.budget ? '1.5px solid #ef4444' : '1px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-md)',
                       color: 'var(--text-main)',
                       fontSize: '0.88rem',
@@ -346,6 +352,11 @@ export default function PostRequestModal({
                   <option value="trip">/ Trip</option>
                 </select>
               </div>
+              {errors.budget && (
+                <div style={{ color: '#ef4444', fontSize: '0.74rem', marginTop: 5, fontWeight: 600 }}>
+                  {errors.budget}
+                </div>
+              )}
             </div>
 
             <div>

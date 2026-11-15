@@ -45,7 +45,7 @@ class AnalyticsService {
     }
 
     // In local development or fallback mode, log cleanly
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env?.DEV) {
       console.info('[FindCo Analytics]:', eventName, payload.properties);
     }
   }
@@ -63,3 +63,4 @@ class AnalyticsService {
 }
 
 export const analytics = new AnalyticsService();
+

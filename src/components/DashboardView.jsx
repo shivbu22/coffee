@@ -22,6 +22,34 @@ import {
 import confetti from 'canvas-confetti';
 import { isSupabaseConfigured, SupabaseService } from '../lib/supabaseClient';
 
+// Isolated self-updating countdown to eliminate 1-second re-render storms across the DashboardView tree
+function ActiveSessionCountdown({ initialSeconds = 42 * 60 }) {
+  const [seconds, setSeconds] = useState(initialSeconds);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSeconds(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const formatted = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+  return (
+    <div style={{
+      fontSize: '2.1rem',
+      fontWeight: 900,
+      color: seconds < 600 ? '#dc2626' : '#0f172a',
+      fontVariantNumeric: 'tabular-nums',
+      letterSpacing: '-0.02em'
+    }}>
+      {formatted}
+    </div>
+  );
+}
+
 export default function DashboardView({
   dashboardData,
   setDashboardData,
@@ -39,7 +67,6 @@ export default function DashboardView({
   const [withdrawAmount, setWithdrawAmount] = useState('2000');
   const [isSosModalOpen, setIsSosModalOpen] = useState(false);
   const [copiedPin, setCopiedPin] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(42 * 60); // 42 minutes remaining in active session
   const [lastCheckInTime, setLastCheckInTime] = useState('12 mins ago');
   const [checkInSuccess, setCheckInSuccess] = useState(false);
 
@@ -48,20 +75,6 @@ export default function DashboardView({
   const [activePinBooking, setActivePinBooking] = useState(null);
   const [inputHandshakePin, setInputHandshakePin] = useState('');
   const [pinError, setPinError] = useState('');
-
-  // Active session timer countdown simulation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimerSeconds(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatTimer = (totalSec) => {
-    const m = Math.floor(totalSec / 60);
-    const s = totalSec % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
 
   const handleCopyPin = (pin) => {
     navigator.clipboard?.writeText(pin);
@@ -87,7 +100,7 @@ export default function DashboardView({
     }
 
     if (activePinBooking.handshakePin && entered !== activePinBooking.handshakePin) {
-      setPinError(`Incorrect PIN. The client has provided PIN ${activePinBooking.handshakePin}.`);
+      setPinError('Incorrect Handshake PIN. Please verify the 4 digits with your client.');
       return;
     }
 
@@ -97,7 +110,7 @@ export default function DashboardView({
       origin: { y: 0.6 }
     });
 
-    const releaseAmount = activePinBooking.amount || 800;
+    const releaseAmount = Number(activePinBooking.amount ?? activePinBooking.escrowAmount ?? 800);
 
     // Release escrow into companion wallet balance
     setDashboardData(prev => ({
@@ -819,15 +832,7 @@ export default function DashboardView({
                 Next Safety Check-in Timer
               </span>
               
-              <div style={{
-                fontSize: '2.1rem',
-                fontWeight: 900,
-                color: timerSeconds < 600 ? '#dc2626' : '#0f172a',
-                fontVariantNumeric: 'tabular-nums',
-                letterSpacing: '-0.02em'
-              }}>
-                {formatTimer(timerSeconds)}
-              </div>
+              <ActiveSessionCountdown initialSeconds={42 * 60} />
 
               <div style={{ fontSize: '0.74rem', color: '#64748b', marginBottom: 4 }}>
                 Last verified check-in: <strong style={{ color: '#0f172a' }}>{lastCheckInTime}</strong>
@@ -1108,7 +1113,7 @@ export default function DashboardView({
                 {/* Amount & Status Badge */}
                 <div style={{ textAlign: 'right', minWidth: 150 }}>
                   <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em' }} className="tabular-nums">
-                    ₹{b.amount.toLocaleString('en-IN')}
+                    ₹{Number(b.amount ?? b.escrowAmount ?? 0).toLocaleString('en-IN')}
                   </div>
                   <div style={{
                     fontSize: '0.72rem',
@@ -1370,7 +1375,7 @@ export default function DashboardView({
                         fontWeight: 900,
                         color: tx.type === 'credit' ? '#059669' : '#0f172a'
                       }} className="tabular-nums">
-                        {tx.amount > 0 ? `+₹${tx.amount.toLocaleString('en-IN')}` : `-₹${Math.abs(tx.amount).toLocaleString('en-IN')}`}
+                        {Number(tx.amount || 0) > 0 ? `+₹${Number(tx.amount || 0).toLocaleString('en-IN')}` : `-₹${Math.abs(Number(tx.amount || 0)).toLocaleString('en-IN')}`}
                       </td>
                     </tr>
                   ))}
@@ -1852,7 +1857,7 @@ export default function DashboardView({
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', paddingTop: 6, borderTop: '1px solid #e2e8f0' }}>
                 <span style={{ color: '#64748b' }}>Escrow Payout to Release:</span>
                 <strong style={{ color: '#059669', fontSize: '1rem' }} className="tabular-nums">
-                  ₹{activePinBooking.amount.toLocaleString('en-IN')}
+                  ₹{Number(activePinBooking.amount ?? activePinBooking.escrowAmount ?? 0).toLocaleString('en-IN')}
                 </strong>
               </div>
             </div>

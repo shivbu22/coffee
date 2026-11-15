@@ -76,3 +76,4 @@ Submit new URLs instantly to Bing, Naver, and Seznam:
 
 ### C. Search Engine Directives (`robots.txt`)
 FindCo's `public/robots.txt` already explicitly authorises AI search agents (`OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot`) for maximum brand citability.
+

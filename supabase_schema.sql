@@ -27,7 +27,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Automatic Auth Trigger: Whenever a user signs up via Supabase Auth,
 -- seamlessly create or update their public.profiles record
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     INSERT INTO public.profiles (id, email, full_name, avatar_url, phone, role, city)
     VALUES (
@@ -36,19 +40,21 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(COALESCE(NEW.email, 'User'), '@', 1)),
         COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'avatar', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces'),
         COALESCE(NEW.raw_user_meta_data->>'phone', NEW.phone, ''),
-        COALESCE(NEW.raw_user_meta_data->>'role', 'client'),
+        CASE 
+            WHEN NEW.raw_user_meta_data->>'role' IN ('buddy', 'companion') THEN 'buddy'
+            ELSE 'client'
+        END,
         COALESCE(NEW.raw_user_meta_data->>'city', 'Bengaluru')
     )
     ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
         avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
-        role = COALESCE(EXCLUDED.role, public.profiles.role),
         city = COALESCE(EXCLUDED.city, public.profiles.city),
         updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -220,19 +226,19 @@ DROP POLICY IF EXISTS "Public can view bookings" ON public.bookings;
 DROP POLICY IF EXISTS "Parties can view their own bookings" ON public.bookings;
 CREATE POLICY "Parties can view their own bookings" 
     ON public.bookings FOR SELECT 
-    USING (auth.uid() = client_id OR auth.uid() = companion_id OR auth.role() = 'service_role');
+    USING (auth.uid()::text = client_id OR auth.uid()::text = buddy_id OR auth.role() = 'service_role');
 
 DROP POLICY IF EXISTS "Public can insert bookings" ON public.bookings;
 DROP POLICY IF EXISTS "Clients can create bookings" ON public.bookings;
 CREATE POLICY "Clients can create bookings" 
     ON public.bookings FOR INSERT 
-    WITH CHECK (auth.uid() = client_id OR auth.role() = 'service_role');
+    WITH CHECK (auth.uid()::text = client_id OR auth.role() = 'service_role');
 
 DROP POLICY IF EXISTS "Public can verify handshake PIN and release escrow" ON public.bookings;
 DROP POLICY IF EXISTS "Parties can update booking status" ON public.bookings;
 CREATE POLICY "Parties can update booking status" 
     ON public.bookings FOR UPDATE 
-    USING (auth.uid() = client_id OR auth.uid() = companion_id OR auth.role() = 'service_role');
+    USING (auth.uid()::text = client_id OR auth.uid()::text = buddy_id OR auth.role() = 'service_role');
 
 -- 4. Chat Messages RLS (Participant Guarded)
 DROP POLICY IF EXISTS "Public can view room messages" ON public.chat_messages;
@@ -245,7 +251,7 @@ DROP POLICY IF EXISTS "Public can insert room messages" ON public.chat_messages;
 DROP POLICY IF EXISTS "Authenticated users can insert room messages" ON public.chat_messages;
 CREATE POLICY "Authenticated users can insert room messages" 
     ON public.chat_messages FOR INSERT 
-    WITH CHECK (auth.uid() = sender_id OR auth.role() = 'service_role');
+    WITH CHECK (auth.uid()::text = sender_id OR auth.role() = 'service_role');
 
 -- 5. Hallmark Credentials RLS
 DROP POLICY IF EXISTS "Public can audit hallmark credentials" ON public.hallmark_credentials;
@@ -255,9 +261,9 @@ CREATE POLICY "Public can audit hallmark credentials"
 
 DROP POLICY IF EXISTS "Public can insert hallmark records" ON public.hallmark_credentials;
 DROP POLICY IF EXISTS "Authenticated users can insert hallmark records" ON public.hallmark_credentials;
-CREATE POLICY "Authenticated users can insert hallmark records" 
+CREATE POLICY "Service role can manage hallmark records" 
     ON public.hallmark_credentials FOR INSERT 
-    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role');
+    WITH CHECK (auth.role() = 'service_role');
 
 -- 6. Support Tickets RLS (DPDP Act Statutory Redressal)
 CREATE TABLE IF NOT EXISTS public.support_tickets (
@@ -404,6 +410,47 @@ INSERT INTO public.hallmark_credentials (
     '0x9c33d8fa110982bbe42199ae1245ffbc71905541', 'XXXX-XXXX-7104'
 )
 ON CONFLICT (fingerprint_hash) DO NOTHING;
+
+-- =========================================================================
+-- 7. DPDP ACT 2023 SECTION 12 STATUTORY DATA ERASURE & ANONYMIZATION RPC
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.request_data_erasure()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    curr_user_id UUID := auth.uid();
+BEGIN
+    IF curr_user_id IS NULL THEN
+        RAISE EXCEPTION 'Authentication required for statutory data erasure.';
+    END IF;
+
+    -- Anonymize core profile per Right to Erasure
+    UPDATE public.profiles
+    SET 
+        full_name = 'Anonymized Member',
+        email = curr_user_id || '@erased.findco.in',
+        phone = '',
+        avatar_url = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+        bio = 'Data erased per DPDP Act Section 12 request.',
+        updated_at = NOW()
+    WHERE id = curr_user_id;
+
+    -- Anonymize posted activity requests
+    UPDATE public.activity_requests
+    SET 
+        user_name = 'Anonymized Member',
+        phone = NULL
+    WHERE user_id = curr_user_id::text;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'Personal data sanitized and anonymized in strict compliance with the Digital Personal Data Protection Act (DPDP) 2023.'
+    );
+END;
+$$;
 
 -- =========================================================================
 -- END OF SCHEMA

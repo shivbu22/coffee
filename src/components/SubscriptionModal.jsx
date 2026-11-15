@@ -181,7 +181,7 @@ export default function SubscriptionModal({
               </div>
 
               {/* Title */}
-              <h2 style={{
+              <h2 id="subscription-modal-title" style={{
                 fontSize: '1.45rem',
                 fontWeight: 800,
                 lineHeight: 1.25,
@@ -386,7 +386,7 @@ export default function SubscriptionModal({
                 <Award size={12} />
                 SELECT YOUR MEMBERSHIP PASS
               </div>
-              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 4px 0', color: 'var(--text-main)' }}>
+              <h3 id="subscription-modal-title" style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 4px 0', color: 'var(--text-main)' }}>
                 Choose Your Pass
               </h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
@@ -574,7 +574,7 @@ export default function SubscriptionModal({
               }}>
                 <CreditCard size={20} />
               </div>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 4px 0', color: 'var(--text-main)' }}>
+              <h3 id="subscription-modal-title" style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 4px 0', color: 'var(--text-main)' }}>
                 Razorpay Secure Checkout
               </h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
@@ -685,7 +685,7 @@ export default function SubscriptionModal({
               <Check size={28} />
             </div>
 
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 8 }}>
+            <h3 id="subscription-modal-title" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 8 }}>
               Membership Unlocked!
             </h3>
             <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
