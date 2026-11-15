@@ -8,19 +8,17 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+          const normalized = id.replace(/\\/g, '/');
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(normalized)) {
             return 'vendor-react';
           }
-          if (id.includes('node_modules/@supabase/')) {
-            return 'vendor-supabase';
-          }
-          if (id.includes('node_modules/lucide-react/')) {
+          if (normalized.includes('node_modules/lucide-react/')) {
             return 'vendor-icons';
           }
-          if (id.includes('node_modules/motion/') || id.includes('node_modules/framer-motion/')) {
+          if (/node_modules\/(motion|framer-motion)\//.test(normalized)) {
             return 'vendor-motion';
           }
-          if (id.includes('node_modules/canvas-confetti/')) {
+          if (normalized.includes('node_modules/canvas-confetti/')) {
             return 'vendor-confetti';
           }
         },

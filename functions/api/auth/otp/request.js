@@ -24,8 +24,9 @@ export async function onRequestPost({ request, env }) {
     });
     delivered = res.ok;
   }
-  const isProd = env.ENVIRONMENT === 'production';
+  const isLocalDev = env.ENVIRONMENT === 'development' || env.ENVIRONMENT === 'local';
+  const isProd = env.ENVIRONMENT === 'production' || !isLocalDev;
   if (!delivered && isProd) return error('OTP delivery is not configured on this deployment (set RESEND_API_KEY or an SMS provider).', 501);
-  // Non-production fallback: surface the code so local/dev flows can be tested.
-  return json({ ok: true, delivered, ...(isProd ? {} : { devCode: code }) });
+  // SEC-06 Fix: devCode is strictly restricted to explicit local development environments
+  return json({ ok: true, delivered, ...(isLocalDev ? { devCode: code } : {}) });
 }

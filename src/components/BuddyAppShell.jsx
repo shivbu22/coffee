@@ -172,20 +172,7 @@ export default function BuddyAppShell({
       {/* ========================================================= */}
       {/* LEFT SIDEBAR (Pixel-perfect match to BuddySearch screenshot) */}
       {/* ========================================================= */}
-      <aside style={{
-        width: 220,
-        flexShrink: 0,
-        background: '#ffffff',
-        borderRight: '1px solid #f1f5f9',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '20px 14px',
-        position: 'sticky',
-        top: 0,
-        height: '100vh',
-        boxShadow: '1px 0 3px rgba(0, 0, 0, 0.02)'
-      }}>
+      <aside className="app-shell-sidebar">
         <div>
           {/* Top Brand Logo with Mascot */}
           <div 

@@ -1131,7 +1131,7 @@ export default function DashboardView({
                     {b.status === 'confirmed' ? (
                       <>
                         <CheckCircle2 size={12} />
-                        <span>Confirmed • PIN: {b.handshakePin}</span>
+                        <span>Confirmed • {role === 'client' ? `PIN: ${b.handshakePin}` : 'Awaiting Client PIN'}</span>
                       </>
                     ) : (
                       <>

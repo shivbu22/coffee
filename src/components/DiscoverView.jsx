@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Search, 
   MapPin, 
@@ -27,21 +27,23 @@ export default function DiscoverView({
   const [starOnly, setStarOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter companions
-  const filteredCompanions = companions.filter(comp => {
-    if (cityFilter && cityFilter !== 'All Cities' && comp.city !== cityFilter) return false;
-    if (selectedCategory !== 'All Categories' && !comp.services.includes(selectedCategory)) return false;
-    if (comp.hourlyRate > maxHourlyRate) return false;
-    if (starOnly && !comp.isStar) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = comp.name.toLowerCase().includes(q);
-      const matchBio = comp.bio.toLowerCase().includes(q);
-      const matchArea = comp.area.toLowerCase().includes(q);
-      if (!matchName && !matchBio && !matchArea) return false;
-    }
-    return true;
-  });
+  // Memoized filter calculation for instant slider & search responsiveness
+  const filteredCompanions = useMemo(() => {
+    return companions.filter(comp => {
+      if (cityFilter && cityFilter !== 'All Cities' && comp.city !== cityFilter) return false;
+      if (selectedCategory !== 'All Categories' && !comp.services.includes(selectedCategory)) return false;
+      if (comp.hourlyRate > maxHourlyRate) return false;
+      if (starOnly && !comp.isStar) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = comp.name?.toLowerCase().includes(q);
+        const matchBio = comp.bio?.toLowerCase().includes(q);
+        const matchArea = comp.area?.toLowerCase().includes(q);
+        if (!matchName && !matchBio && !matchArea) return false;
+      }
+      return true;
+    });
+  }, [companions, cityFilter, selectedCategory, maxHourlyRate, starOnly, searchQuery]);
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px 80px 20px' }}>

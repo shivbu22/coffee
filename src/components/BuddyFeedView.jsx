@@ -73,17 +73,13 @@ export default function BuddyFeedView({
   const [proposalNote, setProposalNote] = useState('');
   const [reportModalData, setReportModalData] = useState(null);
 
-  // Tab change handler with micro-loading transition
+  // Immediate tab and category filtering (eliminated artificial delay)
   const handleFilterChange = (tab) => {
-    setIsFilterLoading(true);
     setFilterTab(tab);
-    setTimeout(() => setIsFilterLoading(false), 140);
   };
 
   const handleCategoryChange = (catId) => {
-    setIsFilterLoading(true);
     setSelectedCategory(catId);
-    setTimeout(() => setIsFilterLoading(false), 140);
   };
 
   // Upvote with micro-interaction

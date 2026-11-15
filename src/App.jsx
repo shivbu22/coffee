@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
 import Footer from './components/Footer';
@@ -150,13 +150,22 @@ export default function App() {
 
   // Toast System
   const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
 
   const showToast = (message, type = 'info') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ id: Date.now(), message, type });
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToast(null);
+      toastTimerRef.current = null;
     }, 4000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const handleUnlockSubscription = (tier = 'premium') => {
     const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.tier === tier || (tier === 'star' && p.tier === 'star_member')) || SUBSCRIPTION_PLANS[2];

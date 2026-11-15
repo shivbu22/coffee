@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 /**
  * Resilient Avatar component with automatic initials fallback
@@ -14,6 +14,10 @@ export default function SafeAvatar({
   role = 'presentation'
 }) {
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
 
   const initials = alt
     ? alt

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Send, 
   MapPin, 
@@ -63,6 +63,9 @@ async function compressImageFile(file, maxWidth = 1200, maxHeight = 1200, qualit
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
+        // Prevent black background on transparent PNG/WebP conversions to JPEG
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve({
@@ -170,6 +173,7 @@ export default function ChatsView({
   // Enterprise Chat UI State
   const [offerHours, setOfferHours] = useState('2');
   const [activeLightboxImage, setActiveLightboxImage] = useState(null);
+  const [isSosModalOpen, setIsSosModalOpen] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [customVenueName, setCustomVenueName] = useState('');
@@ -249,69 +253,97 @@ export default function ChatsView({
     return () => unsubscribe();
   }, [selectedRoomId, role, setChats]);
 
-  // Offline Outbox Queue Drainer: Auto-flushes when device comes back online
+  // Offline Outbox Queue Drainer: Sequentially flushes when device comes back online
   useEffect(() => {
     if (!isOnline) return;
-    try {
-      const raw = localStorage.getItem('findco_offline_chat_queue_v1');
-      if (!raw) return;
-      const queue = JSON.parse(raw);
-      if (!Array.isArray(queue) || queue.length === 0) return;
+    let isCancelled = false;
 
-      queue.forEach(item => {
-        if (isSupabaseConfigured) {
-          SupabaseService.sendMessage({
-            room_id: item.roomId,
-            sender_name: role === 'buddy' ? 'Buddy' : 'Client',
-            sender_role: role === 'buddy' ? 'buddy' : 'client',
-            text: item.text,
-            client_temp_id: item.clientTempId || item.id,
-            media_type: item.mediaType,
-            media_url: item.mediaUrl,
-            media_metadata: item.mediaMetadata,
-            location_data: item.locationData
-          }).catch(console.warn);
+    const drainQueue = async () => {
+      try {
+        const raw = localStorage.getItem('findco_offline_chat_queue_v1');
+        if (!raw) return;
+        const queue = JSON.parse(raw);
+        if (!Array.isArray(queue) || queue.length === 0) return;
+
+        let remainingQueue = [...queue];
+        let syncedCount = 0;
+
+        for (const item of queue) {
+          if (isCancelled) break;
+          try {
+            if (isSupabaseConfigured) {
+              await SupabaseService.sendMessage({
+                room_id: item.roomId,
+                sender_name: role === 'buddy' ? 'Buddy' : 'Client',
+                sender_role: role === 'buddy' ? 'buddy' : 'client',
+                text: item.text,
+                client_temp_id: item.clientTempId || item.id,
+                media_type: item.mediaType,
+                media_url: item.mediaUrl,
+                media_metadata: item.mediaMetadata,
+                location_data: item.locationData
+              });
+            }
+
+            // Remove successfully sent item from storage queue
+            remainingQueue = remainingQueue.filter(q => q.id !== item.id && q.clientTempId !== item.clientTempId);
+            localStorage.setItem('findco_offline_chat_queue_v1', JSON.stringify(remainingQueue));
+            syncedCount++;
+
+            setChats(prev => prev.map(c => {
+              if (c.id === item.roomId) {
+                return {
+                  ...c,
+                  messages: c.messages.map(m => (m.id === item.id || m.clientTempId === item.clientTempId) ? { ...m, status: 'delivered' } : m)
+                };
+              }
+              return c;
+            }));
+          } catch (itemErr) {
+            console.warn('[Offline Queue Item Error]', itemErr);
+            // On failure, keep in queue and stop sequential send
+            break;
+          }
         }
 
-        setChats(prev => prev.map(c => {
-          if (c.id === item.roomId) {
-            return {
-              ...c,
-              messages: c.messages.map(m => (m.id === item.id || m.clientTempId === item.clientTempId) ? { ...m, status: 'delivered' } : m)
-            };
-          }
-          return c;
-        }));
-      });
+        if (remainingQueue.length === 0) {
+          localStorage.removeItem('findco_offline_chat_queue_v1');
+        }
+        if (syncedCount > 0 && onShowToast) {
+          onShowToast(`Back online! Synchronized ${syncedCount} offline message(s).`, 'success');
+        }
+      } catch (err) {
+        console.warn('[Offline Queue Drain] error:', err);
+      }
+    };
 
-      localStorage.removeItem('findco_offline_chat_queue_v1');
-      if (onShowToast) onShowToast(`Back online! Synchronized ${queue.length} offline message(s).`, 'success');
-    } catch (err) {
-      console.warn('[Offline Queue Drain] error:', err);
-    }
+    drainQueue();
+    return () => { isCancelled = true; };
   }, [isOnline, role, setChats, onShowToast]);
 
-  // Filter conversations
-  const filteredChats = chats.filter(c => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = c.participant.name.toLowerCase().includes(q);
-      const matchCity = c.participant.city.toLowerCase().includes(q);
-      const matchMsg = c.messages.some(m => m.text?.toLowerCase().includes(q));
-      if (!matchName && !matchCity && !matchMsg) return false;
-    }
+  // Memoized conversation filtering
+  const filteredChats = useMemo(() => {
+    return chats.filter(c => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = c.participant.name?.toLowerCase().includes(q);
+        const matchCity = c.participant.city?.toLowerCase().includes(q);
+        const matchMsg = c.messages.some(m => m.text?.toLowerCase().includes(q));
+        if (!matchName && !matchCity && !matchMsg) return false;
+      }
 
-    if (filterCategory === 'unread') {
-      return (c.unreadCount || 0) > 0;
-    }
-    if (filterCategory === 'quotes') {
-      return c.messages.some(m => m.isOffer);
-    }
-    if (filterCategory === 'active') {
-      return c.messages.some(m => m.isOffer && m.offerData?.status === 'accepted');
-    }
-    return true;
-  });
+      if (filterCategory === 'unread') {
+        return (c.unreadCount || 0) > 0;
+      }
+      if (filterCategory === 'quotes') {
+        return c.messages.some(m => m.isOffer);
+      }
+      if (filterCategory === 'active') {
+        return c.messages.some(m => m.isOffer && m.offerData?.status === 'accepted');
+      }
+      return true;
+    });
+  }, [chats, searchQuery, filterCategory]);
 
   const handleSendMessage = (textToSend = null, mediaPayload = null) => {
     const text = textToSend !== null ? textToSend : inputText;
@@ -590,6 +622,16 @@ export default function ChatsView({
       origin: { y: 0.6 }
     });
 
+    // Retrieve dynamic offer details from the target quote message
+    const targetMsg = activeChat?.messages?.find(m => m.isOffer && m.offerData?.offerId === offerId);
+    const offerData = targetMsg?.offerData || {};
+    const acceptedAmount = Number(offerData.amount) || 800;
+    const acceptedVenue = offerData.venue || 'Agreed Public Venue';
+    const acceptedHours = Number(offerData.hours) || 2;
+    const acceptedDate = offerData.date || 'Saturday';
+    const acceptedTime = offerData.time || '03:00 PM';
+    const acceptedHourlyRate = Math.round(acceptedAmount / Math.max(1, acceptedHours));
+
     // Cryptographically isolated 4-digit PIN generated per booking
     const handshakePin = Math.floor(1000 + Math.random() * 9000).toString();
 
@@ -613,7 +655,7 @@ export default function ChatsView({
         const confirmMsg = {
           id: `m_${Date.now()}`,
           sender: 'me',
-          text: `Proposal accepted! ₹800 locked in FindCo Escrow Vault. Official safety voucher issued to client booking pass. Looking forward to Saturday!`,
+          text: `Proposal accepted! ₹${acceptedAmount} locked in FindCo Escrow Vault. Official safety voucher issued to client booking pass. Looking forward to ${acceptedDate}!`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isRead: true,
           status: 'delivered'
@@ -631,14 +673,14 @@ export default function ChatsView({
     if (onAddBooking) {
       onAddBooking({
         id: `book_live_${Date.now()}`,
-        title: activeChat?.participant?.name ? `Coffee Session with ${activeChat.participant.name}` : 'Specialty Coffee Tasting',
+        title: activeChat?.participant?.name ? `Session with ${activeChat.participant.name}` : 'Specialty Meetup',
         category: 'Cafe & Dining Buddy',
         partnerName: activeChat?.participant?.name || 'Priya Sharma',
         partnerAvatar: activeChat?.participant?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=faces',
         partnerCity: activeChat?.participant?.city || 'Bengaluru',
-        venue: 'Third Wave Coffee, 12th Main Indiranagar',
-        dateTime: 'Saturday • 03:00 PM (2h)',
-        amount: 800,
+        venue: acceptedVenue,
+        dateTime: `${acceptedDate} • ${acceptedTime} (${acceptedHours}h)`,
+        amount: acceptedAmount,
         status: 'confirmed',
         handshakePin,
         escrowStatus: 'Escrow Locked'
@@ -650,17 +692,17 @@ export default function ChatsView({
         client_name: 'You (Client)',
         buddy_name: activeChat?.participant?.name || 'Priya Sharma',
         activity: 'Cafe & Dining Buddy',
-        date: 'Saturday',
-        time: '03:00 PM',
-        hours: 2,
-        hourly_rate: 400,
-        total_amount: 800,
+        date: acceptedDate,
+        time: acceptedTime,
+        hours: acceptedHours,
+        hourly_rate: acceptedHourlyRate,
+        total_amount: acceptedAmount,
         escrow_status: 'LOCKED',
         handshake_pin: handshakePin
       }).catch(err => console.warn('[Cloudflare Sync] booking sync error:', err));
     }
 
-    if (onShowToast) onShowToast(`Quote Accepted! ₹800 locked in FindCo Escrow Vault. Handshake PIN: ${handshakePin}.`, 'success');
+    if (onShowToast) onShowToast(`Quote Accepted! ₹${acceptedAmount} locked in FindCo Escrow Vault. Handshake PIN: ${handshakePin}.`, 'success');
 
     setTimeout(() => {
       setIsAcceptingOffer(false);
@@ -1423,70 +1465,88 @@ export default function ChatsView({
 
                         {/* Accepted State: Verified Pass Voucher */}
                         {isAccepted && (
-                          <div style={{
-                            background: '#f0fdf4',
-                            border: '1px solid #bbf7d0',
-                            borderRadius: 12,
-                            padding: '12px 14px'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#166534' }}>
-                                LIVE SAFETY HANDSHAKE PIN
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyPin(off.handshakePin || '4892')}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: '#166534',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 4
-                                }}
-                              >
-                                {copiedPin ? <Check size={13} /> : <Copy size={13} />}
-                                <span>{copiedPin ? 'Copied' : 'Copy PIN'}</span>
-                              </button>
-                            </div>
-
+                          role === 'client' ? (
                             <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 8,
-                              margin: '6px 0 10px 0'
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: 12,
+                              padding: '12px 14px'
                             }}>
-                              {(off.handshakePin || '4892').split('').map((digit, idx) => (
-                                <span 
-                                  key={idx}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#166534' }}>
+                                  LIVE SAFETY HANDSHAKE PIN
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyPin(off.handshakePin || '4892')}
                                   style={{
-                                    width: 38,
-                                    height: 42,
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#166534',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    background: '#ffffff',
-                                    borderRadius: 8,
-                                    fontSize: '1.25rem',
-                                    fontWeight: 900,
-                                    color: '#166534',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                                    border: '1px solid #86efac'
+                                    gap: 4
                                   }}
                                 >
-                                  {digit}
-                                </span>
-                              ))}
-                            </div>
+                                  {copiedPin ? <Check size={13} /> : <Copy size={13} />}
+                                  <span>{copiedPin ? 'Copied' : 'Copy PIN'}</span>
+                                </button>
+                              </div>
 
-                            <div style={{ fontSize: '0.72rem', color: '#15803d', textAlign: 'center', lineHeight: 1.4 }}>
-                              Share this PIN with Priya only after you meet in person at Third Wave Coffee.
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                margin: '6px 0 10px 0'
+                              }}>
+                                {(off.handshakePin || '4892').split('').map((digit, idx) => (
+                                  <span 
+                                    key={idx}
+                                    style={{
+                                      width: 38,
+                                      height: 42,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      background: '#ffffff',
+                                      borderRadius: 8,
+                                      fontSize: '1.25rem',
+                                      fontWeight: 900,
+                                      color: '#166534',
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                                      border: '1px solid #86efac'
+                                    }}
+                                  >
+                                    {digit}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div style={{ fontSize: '0.72rem', color: '#15803d', textAlign: 'center', lineHeight: 1.4 }}>
+                                Share this PIN with {activeChat?.participant?.name || 'companion'} only after you meet in person at the venue.
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div style={{
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: 12,
+                              padding: '12px 14px',
+                              textAlign: 'center'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#166534', fontWeight: 800, fontSize: '0.78rem', marginBottom: 4 }}>
+                                <ShieldCheck size={16} />
+                                <span>IN-PERSON VERIFICATION PENDING</span>
+                              </div>
+                              <p style={{ fontSize: '0.74rem', color: '#15803d', margin: 0, lineHeight: 1.45 }}>
+                                Escrow locked. Ask the client for their 4-digit Handshake PIN in person at the meetup to unlock payment.
+                              </p>
+                            </div>
+                          )
                         )}
                       </div>
                     </div>
@@ -2038,9 +2098,7 @@ export default function ChatsView({
               {/* Emergency SOS button */}
               <button
                 type="button"
-                onClick={() => {
-                  if (onShowToast) onShowToast('Emergency SOS simulated: Live location pinged to FindCo 24/7 Command.', 'error');
-                }}
+                onClick={() => setIsSosModalOpen(true)}
                 style={{
                   width: '100%',
                   marginTop: 24,

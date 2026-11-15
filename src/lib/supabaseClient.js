@@ -236,6 +236,23 @@ export const SupabaseService = {
     const data = await apiOrNull(`/api/hallmark/${encodeURIComponent(hash)}`);
     return data?.credential || null;
   },
+  async createSupportTicket(ticket) {
+    try {
+      const data = await api('/api/support', { method: 'POST', body: ticket });
+      return data?.ticket || ticket;
+    } catch (err) {
+      console.warn('[Cloudflare Support Ticket] Falling back to local storage:', err);
+      try {
+        const raw = localStorage.getItem('findco_support_tickets_v1');
+        const list = raw ? JSON.parse(raw) : [];
+        list.unshift(ticket);
+        localStorage.setItem('findco_support_tickets_v1', JSON.stringify(list));
+      } catch (localErr) {
+        console.error(localErr);
+      }
+      return ticket;
+    }
+  },
 };
 
 // --- Admin Portal health helpers (backed by GET /api/health) ---------------

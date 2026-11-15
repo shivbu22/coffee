@@ -2,19 +2,33 @@
 // user on create — a client cannot book "as" someone else.
 import { json, error, assertSameOrigin, readJson, requireDb, newId } from '../../_lib/http.js';
 import { requireUser } from '../../_lib/auth.js';
+
+function generateSecurePin() {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(1000 + (buf[0] % 9000));
+}
+
 export async function onRequestGet({ request, env }) {
   const bad = requireDb(env); if (bad) return bad;
   const auth = await requireUser(request, env); if (auth.response) return auth.response;
   const { results } = await env.DB.prepare(
     'SELECT * FROM bookings WHERE client_id = ?1 OR buddy_id = ?1 ORDER BY created_at DESC'
   ).bind(auth.user.id).all();
-  return json({ bookings: (results || []).map(b => ({ ...b, pin_verified: Boolean(b.pin_verified) })) });
+  return json({ 
+    bookings: (results || []).map(b => ({ 
+      ...b, 
+      // SEC-01 Fix: Never leak the client's handshake PIN to the companion
+      handshake_pin: b.client_id === auth.user.id ? b.handshake_pin : undefined,
+      pin_verified: Boolean(b.pin_verified) 
+    })) 
+  });
 }
 export async function onRequestPost({ request, env }) {
   const bad = assertSameOrigin(request) || requireDb(env); if (bad) return bad;
   const auth = await requireUser(request, env); if (auth.response) return auth.response;
   const body = await readJson(request); if (!body) return error('Invalid JSON body.');
-  const pin = String(body.handshake_pin || body.handshakePin || Math.floor(1000 + Math.random() * 9000));
+  const pin = String(body.handshake_pin || body.handshakePin || generateSecurePin());
   if (!/^\d{4}$/.test(pin)) return error('handshake_pin must be 4 digits.');
   const id = newId();
   await env.DB.prepare(
@@ -26,5 +40,11 @@ export async function onRequestPost({ request, env }) {
     Number(body.hours) || 2, Number(body.hourly_rate ?? body.hourlyRate) || 500, Number(body.total_amount ?? body.totalAmount) || 1000,
     'LOCKED', pin).run();
   const row = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?1').bind(id).first();
-  return json({ booking: { ...row, pin_verified: Boolean(row.pin_verified) } }, 201);
+  return json({ 
+    booking: { 
+      ...row, 
+      handshake_pin: row.client_id === auth.user.id ? row.handshake_pin : undefined,
+      pin_verified: Boolean(row.pin_verified) 
+    } 
+  }, 201);
 }

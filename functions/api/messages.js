@@ -8,10 +8,19 @@ import { json, error, assertSameOrigin, readJson, requireDb, newId } from '../_l
 import { requireUser } from '../_lib/auth.js';
 async function isParticipant(env, roomId, user) {
   if (user.role === 'admin') return true;
-  const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM chat_messages WHERE room_id = ?1').bind(roomId).first();
-  if (!count || count.n === 0) return true; // empty room: any signed-in user may open it
+  // 1. If user has already participated in this room, access granted
   const mine = await env.DB.prepare('SELECT COUNT(*) AS n FROM chat_messages WHERE room_id = ?1 AND sender_id = ?2').bind(roomId, user.id).first();
-  return (mine?.n || 0) > 0;
+  if ((mine?.n || 0) > 0) return true;
+
+  // 2. Count distinct participants already in this room
+  const senders = await env.DB.prepare('SELECT DISTINCT sender_id FROM chat_messages WHERE room_id = ?1').bind(roomId).all();
+  const distinctCount = (senders?.results || []).length;
+
+  // SEC-03 Fix: If room is empty (0) or has only 1 sender, allow the second party to join
+  if (distinctCount < 2) return true;
+
+  // Room already has 2 participants and this user is not one of them
+  return false;
 }
 export async function onRequestGet({ request, env }) {
   const bad = requireDb(env); if (bad) return bad;
